@@ -1,0 +1,5 @@
+brand_slug,store_number,name,street,city,state,zip_code,attributes,is_active
+test-brand,001,Downtown Store,123 Main St,Austin,TX,78701,"{""region"": ""southwest"", ""square_footage"": 5000}",true
+test-brand,002,Mall Location,456 Shopping Blvd,Dallas,TX,75201,"{""region"": ""north"", ""square_footage"": 3500}",true
+test-brand,003,Suburban Outlet,789 Commerce Dr,Houston,TX,77001,"{""region"": ""south"", ""square_footage"": 4200}",true
+test-brand,004,Airport Kiosk,1000 Terminal Way,San Antonio,TX,78201,"{""region"": ""central"", ""square_footage"": 800}",false

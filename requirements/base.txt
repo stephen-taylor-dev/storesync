@@ -1,0 +1,29 @@
+# Django core
+django>=5.0
+djangorestframework>=3.14
+djangorestframework-simplejwt>=5.3
+django-cors-headers>=4.3
+django-filter>=24.0
+django-fsm>=2.8
+django-import-export>=3.3
+drf-spectacular>=0.26
+
+# Database
+psycopg[binary]>=3.1
+pgvector>=0.2
+
+# Task queue
+celery>=5.3
+redis>=5.0
+
+# AI/LLM
+langchain>=0.1
+langchain-openai>=0.0.5
+openai>=1.0
+
+# Utils
+python-decouple>=3.8
+Pillow>=10.0
+Jinja2>=3.1
+tablib[xlsx]>=3.5
+openpyxl>=3.1
