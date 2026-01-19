@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   ArrowUpDown,
   ChevronDown,
@@ -10,6 +10,7 @@ import {
   Search,
   Filter,
 } from "lucide-react";
+import { useDebounce } from "@/hooks/use-debounce";
 import { useLocations, useDeleteLocation } from "@/hooks/use-brands";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -53,9 +54,16 @@ export function LocationTable({ brandId }: LocationTableProps) {
   const [editingLocation, setEditingLocation] = useState<Location | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
+  const debouncedSearch = useDebounce(search, 300);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, activeFilter]);
+
   const { data, isLoading, isError } = useLocations(brandId, {
     page,
-    search: search || undefined,
+    search: debouncedSearch || undefined,
     is_active: activeFilter,
   });
 
@@ -63,6 +71,7 @@ export function LocationTable({ brandId }: LocationTableProps) {
 
   const locations = data?.results || [];
   const totalPages = Math.ceil((data?.count || 0) / 10);
+  const isInitialLoading = isLoading && !data;
 
   // Client-side sorting
   const sortedLocations = useMemo(() => {
@@ -155,7 +164,7 @@ export function LocationTable({ brandId }: LocationTableProps) {
     </Button>
   );
 
-  if (isLoading) {
+  if (isInitialLoading) {
     return <InlineLoader />;
   }
 
@@ -174,10 +183,7 @@ export function LocationTable({ brandId }: LocationTableProps) {
           <Input
             placeholder="Search locations..."
             value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
+            onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
           />
         </div>

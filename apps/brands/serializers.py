@@ -84,6 +84,29 @@ class LocationListSerializer(serializers.ModelSerializer):
         return obj.address.get("state", "")
 
 
+class AllLocationsListSerializer(serializers.ModelSerializer):
+    """Serializer for listing all locations across brands."""
+
+    brand_name = serializers.CharField(source="brand.name", read_only=True)
+    full_address = serializers.CharField(read_only=True)
+    campaign_count = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = Location
+        fields = [
+            "id",
+            "brand",
+            "brand_name",
+            "name",
+            "store_number",
+            "address",
+            "full_address",
+            "is_active",
+            "campaign_count",
+            "created_at",
+        ]
+
+
 class LocationDetailSerializer(serializers.ModelSerializer):
     """Serializer for location detail view."""
 

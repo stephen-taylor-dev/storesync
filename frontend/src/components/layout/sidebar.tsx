@@ -109,14 +109,14 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r bg-background transition-transform duration-300 md:static md:translate-x-0",
+          "fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r bg-background transition-transform duration-300 md:relative md:translate-x-0 md:h-full",
           isOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        {/* Mobile close button */}
-        <div className="flex h-16 items-center justify-between border-b px-4 md:hidden">
-          <span className="text-lg font-semibold">Menu</span>
-          <Button variant="ghost" size="icon" onClick={onClose}>
+        {/* Sidebar header */}
+        <div className="flex h-16 items-center justify-between border-b px-4">
+          <span className="text-lg font-semibold">StoreSync</span>
+          <Button variant="ghost" size="icon" onClick={onClose} className="md:hidden">
             <ChevronLeft className="h-5 w-5" />
           </Button>
         </div>

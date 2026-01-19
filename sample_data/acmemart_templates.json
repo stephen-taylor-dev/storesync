@@ -1,0 +1,58 @@
+[
+  {
+    "name": "Grand Opening Announcement",
+    "campaign_type": "grand_opening",
+    "description": "Template for new store grand opening campaigns",
+    "required_variables": ["opening_date", "special_offer"],
+    "content_template": "🎉 Grand Opening Alert!\n\n{{ brand_name }} is thrilled to announce the grand opening of our newest location in {{ city }}, {{ state }}!\n\n📍 {{ location_name }}\n📫 {{ street }}\n📅 Opening {{ opening_date }}\n\nJoin us for:\n✨ {{ special_offer }}\n🎁 Free gifts for the first 100 customers\n🎈 Family-friendly activities all day\n\nWe can't wait to serve our {{ city }} community!\n\n#AcmeMart #GrandOpening #{{ city }}"
+  },
+  {
+    "name": "Summer Sale Event",
+    "campaign_type": "seasonal_sale",
+    "description": "Summer clearance and seasonal sale promotion",
+    "required_variables": ["discount_percentage", "sale_end_date"],
+    "content_template": "☀️ SUMMER SALE at {{ location_name }}!\n\nBeat the heat with HOT savings at your {{ city }} {{ brand_name }}!\n\n🔥 Up to {{ discount_percentage }}% OFF\n📅 Through {{ sale_end_date }}\n📍 {{ street }}, {{ city }}\n\nSummer essentials, outdoor gear, seasonal favorites - all marked down!\n\nVisit us today and save big! Your wallet will thank you. 😎\n\n#SummerSale #{{ brand_name }} #{{ city }}Deals"
+  },
+  {
+    "name": "Holiday Shopping Campaign",
+    "campaign_type": "holiday",
+    "description": "Holiday season shopping promotion",
+    "required_variables": ["holiday_name", "promotion_details"],
+    "content_template": "🎄 {{ holiday_name }} Shopping at {{ brand_name }}!\n\nMake your holiday shopping easy at {{ location_name }}!\n\n🎁 {{ promotion_details }}\n⏰ Extended holiday hours\n🚗 Convenient parking\n📍 {{ street }}, {{ city }}, {{ state }}\n\nFind the perfect gifts for everyone on your list. Our friendly team at Store #{{ store_number }} is here to help!\n\nHappy {{ holiday_name }} from your {{ city }} {{ brand_name }} family! 🎅\n\n#HolidayShopping #{{ brand_name }} #{{ city }}"
+  },
+  {
+    "name": "Weekly Deals Flyer",
+    "campaign_type": "weekly_deals",
+    "description": "Weekly specials and deals announcement",
+    "required_variables": ["deal_highlight", "valid_dates"],
+    "content_template": "📢 This Week's Deals at {{ location_name }}!\n\n💰 FEATURED DEAL:\n{{ deal_highlight }}\n\n📅 Valid: {{ valid_dates }}\n📍 {{ street }}, {{ city }}, {{ state }} {{ zip }}\n\nPlus, check out these in-store specials:\n• Fresh produce markdowns\n• Buy 2, Get 1 deals\n• Member-exclusive savings\n\nStop by Store #{{ store_number }} and see what's in store for you!\n\n#WeeklyDeals #{{ brand_name }} #{{ city }}Savings"
+  },
+  {
+    "name": "Pharmacy Services Promo",
+    "campaign_type": "pharmacy",
+    "description": "Pharmacy services and health campaign (for stores with pharmacy)",
+    "required_variables": ["service_highlight", "appointment_info"],
+    "content_template": "💊 {{ brand_name }} Pharmacy - {{ location_name }}\n\nYour health is our priority!\n\n🏥 Featured Service:\n{{ service_highlight }}\n\n📞 {{ appointment_info }}\n📍 {{ street }}, {{ city }}, {{ state }}\n\nOur pharmacy services include:\n✅ Prescription refills\n✅ Immunizations\n✅ Health screenings\n✅ Medication counseling\n\nConvenient, caring pharmacy services right in your neighborhood.\n\n#{{ brand_name }}Pharmacy #HealthCare #{{ city }}"
+  },
+  {
+    "name": "Gas Station Fuel Rewards",
+    "campaign_type": "fuel_promo",
+    "description": "Fuel rewards promotion (for stores with gas station)",
+    "required_variables": ["cents_off", "reward_details"],
+    "content_template": "⛽ FUEL UP & SAVE at {{ location_name }}!\n\n🚗 Save {{ cents_off }}¢/gallon!\n\n{{ reward_details }}\n\n📍 {{ street }}, {{ city }}, {{ state }}\n\nWhy pay more? Fill up at {{ brand_name }} Store #{{ store_number }} and keep more money in your pocket.\n\n✅ Quality fuel\n✅ Clean facilities\n✅ Quick & easy\n\nSee you at the pump! 🚙\n\n#FuelSavings #{{ brand_name }} #{{ city }}"
+  },
+  {
+    "name": "Community Event Announcement",
+    "campaign_type": "community",
+    "description": "Local community events and partnerships",
+    "required_variables": ["event_name", "event_date", "event_details"],
+    "content_template": "🤝 {{ brand_name }} Community Event!\n\n{{ location_name }} is proud to host:\n\n🎪 {{ event_name }}\n📅 {{ event_date }}\n📍 {{ street }}, {{ city }}\n\n{{ event_details }}\n\nAt {{ brand_name }}, we believe in giving back to the {{ city }} community. Join us for this special event!\n\nBring the family - all are welcome! 👨‍👩‍👧‍👦\n\n#{{ brand_name }}Community #{{ city }}Events #GivingBack"
+  },
+  {
+    "name": "Store Renovation Announcement",
+    "campaign_type": "renovation",
+    "description": "Store remodel or renovation announcement",
+    "required_variables": ["renovation_details", "completion_date"],
+    "content_template": "🔨 Exciting Changes at {{ location_name }}!\n\nWe're getting a makeover! 🎨\n\n{{ renovation_details }}\n\n📅 Estimated completion: {{ completion_date }}\n📍 {{ street }}, {{ city }}, {{ state }}\n\nDuring renovations:\n✅ We remain OPEN\n✅ Same great service\n✅ All departments accessible\n\nWe apologize for any inconvenience and thank you for your patience. The result will be worth it!\n\nYour {{ city }} {{ brand_name }} Team\n\n#StoreRenovation #{{ brand_name }} #NewAndImproved"
+  }
+]

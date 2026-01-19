@@ -1,0 +1,31 @@
+[run]
+source = apps
+branch = True
+omit =
+    */migrations/*
+    */tests/*
+    */__init__.py
+    */admin.py
+    */apps.py
+    */management/*
+    conftest.py
+
+[report]
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    def __str__
+    raise NotImplementedError
+    if __name__ == .__main__.:
+    if TYPE_CHECKING:
+    @abstractmethod
+    @abc.abstractmethod
+
+show_missing = True
+precision = 2
+
+[html]
+directory = htmlcov
+
+[xml]
+output = coverage.xml

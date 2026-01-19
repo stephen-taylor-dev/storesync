@@ -109,7 +109,7 @@ export function CampaignForm({ campaign }: CampaignFormProps) {
         setSelectedTemplate(template);
         // Initialize customizations with empty values for required variables
         const initial: Record<string, string> = {};
-        template.required_variables.forEach((v) => {
+        (template.required_variables || []).forEach((v) => {
           initial[v] = customizations[v] || "";
         });
         setCustomizations(initial);
@@ -292,7 +292,7 @@ export function CampaignForm({ campaign }: CampaignFormProps) {
 
       {/* Customizations */}
       {selectedTemplate &&
-        selectedTemplate.required_variables.length > 0 && (
+        (selectedTemplate.required_variables?.length ?? 0) > 0 && (
           <Card>
             <CardHeader>
               <CardTitle>Customizations</CardTitle>
@@ -301,7 +301,7 @@ export function CampaignForm({ campaign }: CampaignFormProps) {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {selectedTemplate.required_variables.map((variable) => (
+              {(selectedTemplate.required_variables || []).map((variable) => (
                 <div key={variable} className="space-y-2">
                   <Label htmlFor={variable}>
                     {variable.replace(/_/g, " ").replace(/\b\w/g, (l) =>

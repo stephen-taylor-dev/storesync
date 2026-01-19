@@ -37,8 +37,15 @@ import type { CampaignTemplate } from "@/types";
 
 function TemplateRow({ template }: { template: CampaignTemplate }) {
   return (
-    <TableRow>
-      <TableCell className="font-medium">{template.name}</TableCell>
+    <TableRow className="cursor-pointer hover:bg-muted/50">
+      <TableCell className="font-medium">
+        <Link
+          href={`/dashboard/templates/${template.id}`}
+          className="hover:underline"
+        >
+          {template.name}
+        </Link>
+      </TableCell>
       <TableCell>{template.brand_name || "-"}</TableCell>
       <TableCell>
         <Badge variant="outline">{template.campaign_type}</Badge>
@@ -50,8 +57,8 @@ function TemplateRow({ template }: { template: CampaignTemplate }) {
       </TableCell>
       <TableCell>{template.campaign_count ?? 0}</TableCell>
       <TableCell>
-        <Button variant="ghost" size="sm">
-          Edit
+        <Button variant="ghost" size="sm" asChild>
+          <Link href={`/dashboard/templates/${template.id}`}>Edit</Link>
         </Button>
       </TableCell>
     </TableRow>
@@ -98,9 +105,11 @@ export default function TemplatesPage() {
             Manage campaign templates for content generation.
           </p>
         </div>
-        <Button>
-          <Plus className="mr-2 h-4 w-4" />
-          New Template
+        <Button asChild>
+          <Link href="/dashboard/templates/new">
+            <Plus className="mr-2 h-4 w-4" />
+            New Template
+          </Link>
         </Button>
       </div>
 
@@ -161,9 +170,11 @@ export default function TemplatesPage() {
               action={
                 brandFilter === "all" &&
                 typeFilter === "all" && (
-                  <Button>
-                    <Plus className="mr-2 h-4 w-4" />
-                    New Template
+                  <Button asChild>
+                    <Link href="/dashboard/templates/new">
+                      <Plus className="mr-2 h-4 w-4" />
+                      New Template
+                    </Link>
                   </Button>
                 )
               }

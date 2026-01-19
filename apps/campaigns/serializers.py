@@ -180,12 +180,14 @@ class LocationCampaignCreateUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = LocationCampaign
         fields = [
+            "id",
             "location",
             "template",
             "customizations",
             "scheduled_start",
             "scheduled_end",
         ]
+        read_only_fields = ["id"]
 
     def validate(self, attrs):
         """Validate that location and template belong to the same brand."""

@@ -14,6 +14,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('brands', '0002_location'),
+        ('core', '0001_enable_pgvector'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 

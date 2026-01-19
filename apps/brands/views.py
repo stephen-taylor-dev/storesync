@@ -16,6 +16,7 @@ from apps.core.permissions import BrandAccessMixin, HasBrandAccess, IsBrandManag
 from .models import Brand, Location
 from .resources import LocationResource
 from .serializers import (
+    AllLocationsListSerializer,
     BrandCreateUpdateSerializer,
     BrandDetailSerializer,
     BrandListSerializer,
@@ -70,7 +71,16 @@ class BrandViewSet(BrandAccessMixin, viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = Brand.objects.annotate(location_count=Count("locations"))
-        return self.get_brand_queryset(queryset)
+        queryset = self.get_brand_queryset(queryset)
+
+        # Search by name or slug
+        search = self.request.query_params.get("search")
+        if search:
+            queryset = queryset.filter(name__icontains=search) | queryset.filter(
+                slug__icontains=search
+            )
+
+        return queryset.order_by("name")
 
     def get_serializer_class(self):
         if self.action == "list":
@@ -443,3 +453,75 @@ Import multiple locations from a spreadsheet file (CSV, XLSX, or XLS).
         )
         response["Content-Disposition"] = 'attachment; filename="location_import_template.csv"'
         return response
+
+
+@extend_schema_view(
+    list=extend_schema(
+        summary="List all locations",
+        description="Returns a paginated list of all locations across all brands the user has access to.",
+        parameters=[
+            OpenApiParameter(
+                name="brand",
+                type=OpenApiTypes.UUID,
+                location=OpenApiParameter.QUERY,
+                description="Filter by brand ID",
+            ),
+            OpenApiParameter(
+                name="is_active",
+                type=OpenApiTypes.BOOL,
+                location=OpenApiParameter.QUERY,
+                description="Filter by active status",
+            ),
+            OpenApiParameter(
+                name="search",
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                description="Search by name, store number, city, or state",
+            ),
+        ],
+        tags=["locations"],
+    ),
+)
+class AllLocationsViewSet(BrandAccessMixin, viewsets.ReadOnlyModelViewSet):
+    """
+    ViewSet for listing all locations across all brands.
+
+    This provides a flat list of all locations the user has access to,
+    with optional filtering by brand, status, and search.
+    """
+
+    permission_classes = [permissions.IsAuthenticated, HasBrandAccess]
+    pagination_class = StandardPagination
+    serializer_class = AllLocationsListSerializer
+
+    def get_queryset(self):
+        queryset = Location.objects.select_related("brand").annotate(
+            campaign_count=Count("campaigns")
+        )
+
+        # Apply brand access filtering
+        queryset = self.get_location_queryset(queryset)
+
+        # Filter by brand if provided
+        brand_id = self.request.query_params.get("brand")
+        if brand_id:
+            queryset = queryset.filter(brand_id=brand_id)
+
+        # Filter by active status if provided
+        is_active = self.request.query_params.get("is_active")
+        if is_active is not None:
+            queryset = queryset.filter(is_active=is_active.lower() == "true")
+
+        # Search by name, store number, city, or state
+        search = self.request.query_params.get("search")
+        if search:
+            from django.db.models import Q
+
+            queryset = queryset.filter(
+                Q(name__icontains=search)
+                | Q(store_number__icontains=search)
+                | Q(address__city__icontains=search)
+                | Q(address__state__icontains=search)
+            )
+
+        return queryset.order_by("brand__name", "name")

@@ -32,10 +32,10 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen bg-muted/30">
-      <Header onMenuClick={() => setSidebarOpen(true)} />
-      <div className="flex">
-        <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+    <div className="flex h-screen overflow-hidden bg-muted/30">
+      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <div className="flex flex-1 flex-col overflow-hidden">
+        <Header onMenuClick={() => setSidebarOpen(true)} />
         <main className="flex-1 overflow-auto">
           <div className="container py-6 space-y-6">
             <Breadcrumbs />

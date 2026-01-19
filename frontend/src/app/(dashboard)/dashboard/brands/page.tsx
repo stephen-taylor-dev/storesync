@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Building2, MapPin, Plus, Search } from "lucide-react";
+import { useDebounce } from "@/hooks/use-debounce";
 import { useBrands } from "@/hooks/use-brands";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -65,12 +66,23 @@ export default function BrandsPage() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
 
+  const debouncedSearch = useDebounce(search, 300);
+
+  // Reset to page 1 when search changes
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch]);
+
   const { data, isLoading, isError, refetch } = useBrands({
     page,
-    search: search || undefined,
+    search: debouncedSearch || undefined,
   });
 
-  if (isLoading) {
+  const brands = data?.results || [];
+  const totalPages = Math.ceil((data?.count || 0) / 10);
+
+  // Only show full page loader on initial load (no data yet)
+  if (isLoading && !data) {
     return <PageLoader message="Loading brands..." />;
   }
 
@@ -83,9 +95,6 @@ export default function BrandsPage() {
       />
     );
   }
-
-  const brands = data?.results || [];
-  const totalPages = Math.ceil((data?.count || 0) / 10);
 
   return (
     <div className="space-y-6">
@@ -112,10 +121,7 @@ export default function BrandsPage() {
           <Input
             placeholder="Search brands..."
             value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
+            onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
           />
         </div>

@@ -32,9 +32,10 @@ export function useBrands(filters: BrandFilters = {}) {
   return useQuery({
     queryKey: brandKeys.list(filters),
     queryFn: async () => {
-      const response = await api.brands.list(filters);
+      const response = await api.brands.list({ ...filters, page_size: 100 });
       return response.data as PaginatedResponse<Brand>;
     },
+    placeholderData: (previousData) => previousData,
   });
 }
 
@@ -100,6 +101,7 @@ export function useLocations(brandId: string, filters: LocationFilters = {}) {
       return response.data as PaginatedResponse<Location>;
     },
     enabled: !!brandId,
+    placeholderData: (previousData) => previousData,
   });
 }
 
@@ -193,4 +195,51 @@ export function useBulkImportLocations() {
       queryClient.invalidateQueries({ queryKey: brandKeys.detail(brandId) });
     },
   });
+}
+
+// Hook to fetch all locations across all brands with pagination
+export function useAllLocations(filters: {
+  page?: number;
+  pageSize?: number;
+  brand?: string;
+  search?: string;
+  is_active?: boolean;
+} = {}) {
+  const { data: brandsData, isLoading: brandsLoading } = useBrands({});
+  const brands = brandsData?.results || [];
+
+  const page = filters.page || 1;
+  const pageSize = filters.pageSize || 20;
+
+  const locationsQuery = useQuery({
+    queryKey: [...locationKeys.all, "all", { ...filters, page, pageSize }],
+    queryFn: async () => {
+      const response = await api.allLocations.list({
+        page,
+        page_size: pageSize,
+        brand: filters.brand,
+        search: filters.search,
+        is_active: filters.is_active,
+      });
+      return response.data as PaginatedResponse<Location & { brand_name: string; campaign_count: number }>;
+    },
+    placeholderData: (previousData) => previousData,
+  });
+
+  const totalCount = locationsQuery.data?.count || 0;
+  const totalPages = Math.ceil(totalCount / pageSize);
+
+  return {
+    data: locationsQuery.data?.results || [],
+    totalCount,
+    totalPages,
+    currentPage: page,
+    pageSize,
+    hasNextPage: !!locationsQuery.data?.next,
+    hasPrevPage: !!locationsQuery.data?.previous,
+    brands,
+    isLoading: brandsLoading || locationsQuery.isLoading,
+    isError: locationsQuery.isError,
+    refetch: locationsQuery.refetch,
+  };
 }

@@ -1,0 +1,51 @@
+name,store_number,street,city,state,zip,region,square_footage,has_pharmacy,has_gas_station,store_type,is_active
+Downtown Austin,001,500 Congress Ave,Austin,TX,78701,southwest,45000,true,false,flagship,true
+Round Rock,002,2800 S IH-35,Round Rock,TX,78681,southwest,38000,true,true,standard,true
+San Antonio Alamo,003,255 E Basse Rd,San Antonio,TX,78209,southwest,42000,true,false,standard,true
+Houston Galleria,004,5085 Westheimer Rd,Houston,TX,77056,southwest,52000,true,false,flagship,true
+Dallas Downtown,005,1700 Pacific Ave,Dallas,TX,75201,southwest,48000,true,false,flagship,true
+Fort Worth,006,4800 S Hulen St,Fort Worth,TX,76132,southwest,35000,true,true,standard,true
+El Paso,007,8401 Gateway Blvd W,El Paso,TX,79925,southwest,32000,false,true,standard,true
+Phoenix Central,008,3102 E Camelback Rd,Phoenix,AZ,85016,southwest,44000,true,false,standard,true
+Scottsdale,009,7014 E Camelback Rd,Scottsdale,AZ,85251,southwest,38000,true,false,premium,true
+Tucson,010,4821 E Grant Rd,Tucson,AZ,85712,southwest,30000,false,true,standard,true
+Denver Downtown,011,1515 Arapahoe St,Denver,CO,80202,mountain,46000,true,false,flagship,true
+Boulder,012,2800 Pearl St,Boulder,CO,80301,mountain,28000,false,false,standard,true
+Colorado Springs,013,1810 Briargate Blvd,Colorado Springs,CO,80920,mountain,34000,true,true,standard,true
+Los Angeles Downtown,014,735 S Figueroa St,Los Angeles,CA,90017,west,55000,true,false,flagship,true
+Santa Monica,015,395 Santa Monica Pl,Santa Monica,CA,90401,west,42000,true,false,premium,true
+San Diego Gaslamp,016,699 Fifth Ave,San Diego,CA,92101,west,38000,true,false,standard,true
+San Francisco Union Square,017,845 Market St,San Francisco,CA,94103,west,48000,true,false,flagship,true
+San Jose,018,2855 Stevens Creek Blvd,San Jose,CA,95128,west,40000,true,true,standard,true
+Sacramento,019,1689 Arden Way,Sacramento,CA,95815,west,36000,true,true,standard,true
+Seattle Downtown,020,1501 4th Ave,Seattle,WA,98101,northwest,44000,true,false,flagship,true
+Bellevue,021,575 Bellevue Square,Bellevue,WA,98004,northwest,38000,true,false,premium,true
+Portland Pearl,022,1455 NW Flanders St,Portland,OR,97209,northwest,35000,false,false,standard,true
+New York Times Square,023,1535 Broadway,New York,NY,10036,northeast,60000,true,false,flagship,true
+Brooklyn,024,445 Albee Square W,Brooklyn,NY,11201,northeast,42000,true,false,standard,true
+Manhattan Upper West,025,2675 Broadway,New York,NY,10025,northeast,38000,true,false,standard,true
+Boston Back Bay,026,800 Boylston St,Boston,MA,02199,northeast,45000,true,false,flagship,true
+Cambridge,027,100 CambridgeSide Pl,Cambridge,MA,02141,northeast,32000,false,false,standard,true
+Philadelphia Center City,028,1625 Chestnut St,Philadelphia,PA,19103,northeast,40000,true,false,standard,true
+Chicago Magnificent Mile,029,835 N Michigan Ave,Chicago,IL,60611,midwest,52000,true,false,flagship,true
+Chicago Lincoln Park,030,2650 N Clark St,Chicago,IL,60614,midwest,36000,true,false,standard,true
+Milwaukee,031,2500 N Mayfair Rd,Milwaukee,WI,53226,midwest,34000,true,true,standard,true
+Minneapolis Downtown,032,700 Nicollet Mall,Minneapolis,MN,55402,midwest,42000,true,false,standard,true
+Detroit,033,300 Renaissance Ctr,Detroit,MI,48243,midwest,38000,true,false,standard,true
+Atlanta Buckhead,034,3393 Peachtree Rd NE,Atlanta,GA,30326,southeast,46000,true,false,flagship,true
+Atlanta Midtown,035,1075 Peachtree St NE,Atlanta,GA,30309,southeast,38000,true,false,standard,true
+Miami Beach,036,1111 Lincoln Rd,Miami Beach,FL,33139,southeast,40000,true,false,premium,true
+Orlando,037,8001 S Orange Blossom Trl,Orlando,FL,32809,southeast,44000,true,true,standard,true
+Tampa,038,2223 N Westshore Blvd,Tampa,FL,33607,southeast,36000,true,true,standard,true
+Charlotte,039,4400 Sharon Rd,Charlotte,NC,28211,southeast,38000,true,false,standard,true
+Nashville,040,2126 Abbott Martin Rd,Nashville,TN,37215,southeast,35000,true,false,standard,true
+Las Vegas Strip,041,3500 Las Vegas Blvd S,Las Vegas,NV,89109,west,50000,true,false,flagship,true
+Henderson,042,1181 W Sunset Rd,Henderson,NV,89014,west,32000,false,true,standard,true
+Salt Lake City,043,50 S Main St,Salt Lake City,UT,84101,mountain,36000,true,false,standard,true
+Albuquerque,044,6600 Menaul Blvd NE,Albuquerque,NM,87110,southwest,30000,false,true,standard,true
+Kansas City,045,4745 Central St,Kansas City,MO,64112,midwest,34000,true,false,standard,true
+St Louis,046,1 S County Center Way,St Louis,MO,63131,midwest,38000,true,true,standard,true
+Indianapolis,047,49 W Maryland St,Indianapolis,IN,46204,midwest,36000,true,false,standard,true
+Columbus,048,160 Easton Town Ctr,Columbus,OH,43219,midwest,40000,true,false,standard,true
+Cleveland,049,24001 Chagrin Blvd,Cleveland,OH,44122,midwest,32000,true,false,standard,true
+Pittsburgh,050,100 Ross Park Mall Dr,Pittsburgh,PA,15237,northeast,34000,true,false,standard,false

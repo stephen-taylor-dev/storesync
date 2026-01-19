@@ -12,6 +12,8 @@ from drf_spectacular.views import (
     SpectacularSwaggerView,
 )
 
+from apps.brands.urls import all_locations_urlpatterns
+
 urlpatterns = [
     path("admin/", admin.site.urls),
     # API v1
@@ -21,6 +23,7 @@ urlpatterns = [
             [
                 path("auth/", include("apps.users.urls")),
                 path("brands/", include("apps.brands.urls")),
+                path("locations/", include(all_locations_urlpatterns)),
                 path("campaigns/", include("apps.campaigns.urls")),
             ]
         ),
