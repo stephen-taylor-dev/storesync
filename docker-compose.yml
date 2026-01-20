@@ -61,7 +61,7 @@ services:
       dockerfile: Dockerfile
       args:
         REQUIREMENTS: local
-    command: celery -A config worker --loglevel=info
+    command: celery -A config worker --loglevel=info -E -Q default,ai,celery
     volumes:
       - .:/app
     environment:

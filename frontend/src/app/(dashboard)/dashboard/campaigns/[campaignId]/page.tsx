@@ -26,6 +26,8 @@ import { PageLoader } from "@/components/shared/loading-spinner";
 import { ErrorState } from "@/components/shared/error-state";
 import { StatusBadge } from "@/components/campaigns/status-badge";
 import { StatusWorkflow } from "@/components/campaigns/status-workflow";
+import { ContentPreview } from "@/components/campaigns/content-preview";
+import { SimilarCampaigns } from "@/components/campaigns/similar-campaigns";
 import { ApprovalHistory } from "@/components/approvals/approval-history";
 import { useToast } from "@/hooks/use-toast";
 import { formatDate, formatDateTime } from "@/lib/utils";
@@ -120,28 +122,12 @@ export default function CampaignDetailPage() {
             onActionComplete={refetch}
           />
 
-          {/* Generated Content */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Campaign Content</CardTitle>
-              <CardDescription>
-                Generated content for this campaign
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {campaign.generated_content ? (
-                <div className="prose prose-sm max-w-none">
-                  <pre className="whitespace-pre-wrap rounded-lg bg-muted p-4 text-sm">
-                    {campaign.generated_content}
-                  </pre>
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  No content generated yet.
-                </p>
-              )}
-            </CardContent>
-          </Card>
+          {/* Generated Content with AI Features */}
+          <ContentPreview
+            campaign={campaign}
+            onContentUpdate={refetch}
+            editable={["draft", "rejected"].includes(campaign.status)}
+          />
 
           {/* Customizations */}
           {campaign.customizations &&
@@ -175,6 +161,12 @@ export default function CampaignDetailPage() {
 
           {/* Approval History */}
           <ApprovalHistory history={campaign.approval_history || []} />
+
+          {/* Similar Campaigns */}
+          <SimilarCampaigns
+            campaignId={campaign.id}
+            hasEmbedding={!!campaign.generated_content}
+          />
         </div>
 
         {/* Sidebar */}

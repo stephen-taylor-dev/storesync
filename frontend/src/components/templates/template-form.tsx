@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { X } from "lucide-react";
+import { X, Sparkles, Eye, Loader2 } from "lucide-react";
 import { useBrands } from "@/hooks/use-brands";
 import {
   useCreateTemplate,
@@ -25,6 +25,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -34,6 +41,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { InlineLoader } from "@/components/shared/loading-spinner";
 import { CAMPAIGN_TYPES } from "@/types/campaign";
+import { api } from "@/lib/api-client";
 import type { CampaignTemplate } from "@/types";
 
 const templateSchema = z.object({
@@ -60,6 +68,14 @@ export function TemplateForm({ template }: TemplateFormProps) {
     template?.required_variables || []
   );
   const [newVariable, setNewVariable] = useState("");
+
+  // Preview state
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewContent, setPreviewContent] = useState("");
+  const [previewVariables, setPreviewVariables] = useState<string[]>([]);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewUseAI, setPreviewUseAI] = useState(false);
+  const [previewUsedAI, setPreviewUsedAI] = useState(false);
 
   const { data: brandsData, isLoading: brandsLoading } = useBrands({});
   const createTemplate = useCreateTemplate();
@@ -96,6 +112,49 @@ export function TemplateForm({ template }: TemplateFormProps) {
 
   const removeVariable = (variable: string) => {
     setRequiredVariables(requiredVariables.filter((v) => v !== variable));
+  };
+
+  const handlePreview = async (useAI: boolean = false) => {
+    const contentTemplate = watch("content_template");
+    if (!contentTemplate.trim()) {
+      toast({
+        variant: "destructive",
+        title: "No template content",
+        description: "Please enter template content to preview.",
+      });
+      return;
+    }
+
+    setPreviewLoading(true);
+    setPreviewUseAI(useAI);
+    setPreviewOpen(true);
+
+    try {
+      // Build sample data from required variables
+      const sampleData: Record<string, string> = {};
+      requiredVariables.forEach((v) => {
+        sampleData[v] = `[Sample ${v.replace(/_/g, " ")}]`;
+      });
+
+      const response = await api.templates.preview({
+        content_template: contentTemplate,
+        use_ai: useAI,
+        sample_data: sampleData,
+      });
+
+      setPreviewContent(response.data.preview);
+      setPreviewVariables(response.data.variables);
+      setPreviewUsedAI(response.data.used_ai);
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Preview failed",
+        description: "Failed to generate preview. Please check your template syntax.",
+      });
+      setPreviewOpen(false);
+    } finally {
+      setPreviewLoading(false);
+    }
   };
 
   const onSubmit = async (data: TemplateFormData) => {
@@ -236,11 +295,35 @@ export function TemplateForm({ template }: TemplateFormProps) {
       {/* Content Template */}
       <Card>
         <CardHeader>
-          <CardTitle>Content Template</CardTitle>
-          <CardDescription>
-            Write your template using Jinja2 syntax. Use {"{{variable_name}}"} for
-            dynamic content.
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Content Template</CardTitle>
+              <CardDescription>
+                Write your template using Jinja2 syntax. Use {"{{variable_name}}"} for
+                dynamic content.
+              </CardDescription>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => handlePreview(false)}
+              >
+                <Eye className="mr-2 h-4 w-4" />
+                Preview
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => handlePreview(true)}
+              >
+                <Sparkles className="mr-2 h-4 w-4" />
+                AI Preview
+              </Button>
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
@@ -352,6 +435,111 @@ export function TemplateForm({ template }: TemplateFormProps) {
             : "Create Template"}
         </Button>
       </div>
+
+      {/* Preview Dialog */}
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {previewUsedAI ? (
+                <>
+                  <Sparkles className="h-5 w-5 text-primary" />
+                  AI-Generated Preview
+                </>
+              ) : (
+                <>
+                  <Eye className="h-5 w-5" />
+                  Template Preview
+                </>
+              )}
+            </DialogTitle>
+            <DialogDescription>
+              {previewUsedAI
+                ? "This is how AI might generate content based on your template."
+                : "This is how your template renders with sample data."}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-auto space-y-4">
+            {previewLoading ? (
+              <div className="flex flex-col items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+                <p className="text-sm text-muted-foreground">
+                  {previewUseAI ? "Generating AI preview..." : "Rendering preview..."}
+                </p>
+              </div>
+            ) : (
+              <>
+                {/* Preview Content */}
+                <div className="rounded-lg border bg-muted/50 p-4">
+                  <pre className="whitespace-pre-wrap text-sm font-normal">
+                    {previewContent}
+                  </pre>
+                </div>
+
+                {/* Detected Variables */}
+                {previewVariables.length > 0 && (
+                  <div className="rounded-lg border p-4">
+                    <h4 className="text-sm font-medium mb-2">
+                      Detected Variables ({previewVariables.length})
+                    </h4>
+                    <div className="flex flex-wrap gap-1">
+                      {previewVariables.map((v) => (
+                        <Badge
+                          key={v}
+                          variant="outline"
+                          className="font-mono text-xs"
+                        >
+                          {`{{${v}}}`}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Sample Data Info */}
+                <div className="text-xs text-muted-foreground">
+                  <p>
+                    <strong>Sample data used:</strong> Brand: Acme Retail, Location:
+                    Downtown Store, Address: 123 Main St, Austin, TX 78701
+                  </p>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Toggle AI Preview */}
+          {!previewLoading && (
+            <div className="flex justify-between items-center pt-4 border-t">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => handlePreview(!previewUsedAI)}
+              >
+                {previewUsedAI ? (
+                  <>
+                    <Eye className="mr-2 h-4 w-4" />
+                    Show Template Preview
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="mr-2 h-4 w-4" />
+                    Show AI Preview
+                  </>
+                )}
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setPreviewOpen(false)}
+              >
+                Close
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </form>
   );
 }

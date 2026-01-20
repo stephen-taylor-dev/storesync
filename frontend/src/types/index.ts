@@ -88,6 +88,7 @@ export interface LocationCampaign {
   location_name?: string;
   template: string;
   template_name?: string;
+  brand?: string;
   brand_name?: string;
   created_by: number | null;
   created_by_name?: string | null;

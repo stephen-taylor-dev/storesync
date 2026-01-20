@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { AlertCircle } from "lucide-react";
+import { useState, useEffect } from "react";
+import { AlertCircle, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
@@ -19,6 +20,7 @@ import {
   useRejectCampaign,
   useScheduleCampaign,
   useReviseCampaign,
+  useUpdateCampaign,
 } from "@/hooks/use-campaigns";
 import { useToast } from "@/hooks/use-toast";
 import type { LocationCampaign } from "@/types";
@@ -49,17 +51,50 @@ export function ApprovalDialog({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Schedule date states
+  const [scheduledStart, setScheduledStart] = useState("");
+  const [scheduledEnd, setScheduledEnd] = useState("");
+
   const submitCampaign = useSubmitCampaign();
   const approveCampaign = useApproveCampaign();
   const rejectCampaign = useRejectCampaign();
   const scheduleCampaign = useScheduleCampaign();
   const reviseCampaign = useReviseCampaign();
+  const updateCampaign = useUpdateCampaign();
+
+  // Initialize schedule dates from campaign when dialog opens
+  useEffect(() => {
+    if (open && action === "schedule") {
+      // Format dates for datetime-local input (YYYY-MM-DDTHH:MM)
+      const formatForInput = (dateStr: string | null | undefined) => {
+        if (!dateStr) return "";
+        const date = new Date(dateStr);
+        return date.toISOString().slice(0, 16);
+      };
+      setScheduledStart(formatForInput(campaign.scheduled_start));
+      setScheduledEnd(formatForInput(campaign.scheduled_end));
+    }
+  }, [open, action, campaign.scheduled_start, campaign.scheduled_end]);
 
   const handleSubmit = async () => {
     // Validate required comments
     if (requiresComments && !comments.trim()) {
       setError("Comments are required for this action.");
       return;
+    }
+
+    // Validate schedule dates
+    if (action === "schedule") {
+      if (!scheduledStart || !scheduledEnd) {
+        setError("Both start and end dates are required for scheduling.");
+        return;
+      }
+      const startDate = new Date(scheduledStart);
+      const endDate = new Date(scheduledEnd);
+      if (endDate <= startDate) {
+        setError("End date must be after start date.");
+        return;
+      }
     }
 
     setIsSubmitting(true);
@@ -101,6 +136,15 @@ export function ApprovalDialog({
           break;
 
         case "schedule":
+          // First update the campaign with schedule dates
+          await updateCampaign.mutateAsync({
+            id: campaign.id,
+            data: {
+              scheduled_start: new Date(scheduledStart).toISOString(),
+              scheduled_end: new Date(scheduledEnd).toISOString(),
+            },
+          });
+          // Then schedule it
           await scheduleCampaign.mutateAsync(campaign.id);
           toast({
             title: "Campaign scheduled",
@@ -124,9 +168,14 @@ export function ApprovalDialog({
       }
 
       onSuccess?.();
-    } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : "An error occurred";
+    } catch (err: unknown) {
+      let errorMessage = "An error occurred";
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      } else if (typeof err === "object" && err !== null && "response" in err) {
+        const axiosError = err as { response?: { data?: { error?: string } } };
+        errorMessage = axiosError.response?.data?.error || errorMessage;
+      }
       setError(errorMessage);
       toast({
         variant: "destructive",
@@ -142,6 +191,8 @@ export function ApprovalDialog({
     if (!newOpen) {
       setComments("");
       setError(null);
+      setScheduledStart("");
+      setScheduledEnd("");
     }
     onOpenChange(newOpen);
   };
@@ -183,6 +234,59 @@ export function ApprovalDialog({
               {campaign.location_name} • {campaign.brand_name}
             </p>
           </div>
+
+          {/* Schedule Date Inputs */}
+          {action === "schedule" && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 rounded-lg border border-primary/50 bg-primary/10 p-3 text-sm">
+                <Calendar className="h-4 w-4 text-primary" />
+                <p className="text-muted-foreground">
+                  Set the start and end dates for when this campaign should run.
+                </p>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="scheduled_start">
+                    Start Date & Time
+                    <span className="text-destructive ml-1">*</span>
+                  </Label>
+                  <Input
+                    id="scheduled_start"
+                    type="datetime-local"
+                    value={scheduledStart}
+                    onChange={(e) => {
+                      setScheduledStart(e.target.value);
+                      if (error) setError(null);
+                    }}
+                    className={error && !scheduledStart ? "border-destructive" : ""}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="scheduled_end">
+                    End Date & Time
+                    <span className="text-destructive ml-1">*</span>
+                  </Label>
+                  <Input
+                    id="scheduled_end"
+                    type="datetime-local"
+                    value={scheduledEnd}
+                    onChange={(e) => {
+                      setScheduledEnd(e.target.value);
+                      if (error) setError(null);
+                    }}
+                    min={scheduledStart}
+                    className={error && !scheduledEnd ? "border-destructive" : ""}
+                  />
+                </div>
+              </div>
+              {error && (
+                <div className="flex items-center gap-2 text-sm text-destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  {error}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Comments Input */}
           {action !== "schedule" && (

@@ -134,6 +134,7 @@ class LocationCampaignDetailSerializer(serializers.ModelSerializer):
 
     location_name = serializers.CharField(source="location.name", read_only=True)
     template_name = serializers.CharField(source="template.name", read_only=True)
+    brand = serializers.CharField(source="location.brand.id", read_only=True)
     brand_name = serializers.CharField(source="location.brand.name", read_only=True)
     created_by_name = serializers.SerializerMethodField()
     approval_history = ApprovalStepSerializer(
@@ -148,6 +149,7 @@ class LocationCampaignDetailSerializer(serializers.ModelSerializer):
             "location_name",
             "template",
             "template_name",
+            "brand",
             "brand_name",
             "created_by",
             "created_by_name",

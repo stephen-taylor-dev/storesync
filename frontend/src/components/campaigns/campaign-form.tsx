@@ -50,12 +50,14 @@ export function CampaignForm({ campaign }: CampaignFormProps) {
   const isEditing = !!campaign;
 
   const [selectedBrand, setSelectedBrand] = useState<string>(
-    campaign?.location ? "" : ""
+    campaign?.brand || ""
   );
   const [selectedTemplate, setSelectedTemplate] = useState<CampaignTemplate | null>(
     null
   );
-  const [customizations, setCustomizations] = useState<Record<string, string>>({});
+  const [customizations, setCustomizations] = useState<Record<string, string>>(
+    (campaign?.customizations as Record<string, string>) || {}
+  );
 
   const { data: brandsData, isLoading: brandsLoading } = useBrands({});
   const { data: locationsData, isLoading: locationsLoading } = useLocations(
@@ -79,7 +81,7 @@ export function CampaignForm({ campaign }: CampaignFormProps) {
   } = useForm<CampaignFormData>({
     resolver: zodResolver(campaignSchema),
     defaultValues: {
-      brand: "",
+      brand: campaign?.brand || "",
       location: campaign?.location || "",
       template: campaign?.template || "",
       scheduled_start: campaign?.scheduled_start?.slice(0, 16) || "",
@@ -90,24 +92,32 @@ export function CampaignForm({ campaign }: CampaignFormProps) {
   const watchBrand = watch("brand");
   const watchTemplate = watch("template");
 
-  // Update selected brand when it changes
+  // Update selected brand when it changes (but not on initial load for editing)
+  const [isInitialized, setIsInitialized] = useState(false);
+
   useEffect(() => {
     if (watchBrand && watchBrand !== selectedBrand) {
       setSelectedBrand(watchBrand);
-      setValue("location", "");
-      setValue("template", "");
-      setSelectedTemplate(null);
-      setCustomizations({});
+      // Only reset location/template if this is a user-initiated change, not initial load
+      if (isInitialized) {
+        setValue("location", "");
+        setValue("template", "");
+        setSelectedTemplate(null);
+        setCustomizations({});
+      }
     }
-  }, [watchBrand, selectedBrand, setValue]);
+    if (!isInitialized && watchBrand) {
+      setIsInitialized(true);
+    }
+  }, [watchBrand, selectedBrand, setValue, isInitialized]);
 
   // Update selected template and initialize customizations
   useEffect(() => {
     if (watchTemplate && templatesData?.results) {
       const template = templatesData.results.find((t) => t.id === watchTemplate);
-      if (template) {
+      if (template && template.id !== selectedTemplate?.id) {
         setSelectedTemplate(template);
-        // Initialize customizations with empty values for required variables
+        // Initialize customizations - preserve existing values when editing
         const initial: Record<string, string> = {};
         (template.required_variables || []).forEach((v) => {
           initial[v] = customizations[v] || "";
@@ -115,7 +125,7 @@ export function CampaignForm({ campaign }: CampaignFormProps) {
         setCustomizations(initial);
       }
     }
-  }, [watchTemplate, templatesData?.results]);
+  }, [watchTemplate, templatesData?.results, selectedTemplate?.id, customizations]);
 
   const brands = brandsData?.results || [];
   const locations = locationsData?.results || [];
