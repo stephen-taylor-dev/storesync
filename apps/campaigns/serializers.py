@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import ApprovalStep, CampaignTemplate, LocationCampaign
+from .models import ApprovalStep, CampaignTemplate, EmailRecipient, LocationCampaign
 
 
 class CampaignTemplateListSerializer(serializers.ModelSerializer):
@@ -140,6 +140,8 @@ class LocationCampaignDetailSerializer(serializers.ModelSerializer):
     approval_history = ApprovalStepSerializer(
         source="approval_steps", many=True, read_only=True
     )
+    has_html_email = serializers.SerializerMethodField()
+    email_recipient_count = serializers.SerializerMethodField()
 
     class Meta:
         model = LocationCampaign
@@ -156,6 +158,11 @@ class LocationCampaignDetailSerializer(serializers.ModelSerializer):
             "status",
             "customizations",
             "generated_content",
+            "generated_html_email",
+            "email_subject",
+            "email_preview_text",
+            "has_html_email",
+            "email_recipient_count",
             "scheduled_start",
             "scheduled_end",
             "approval_history",
@@ -166,6 +173,9 @@ class LocationCampaignDetailSerializer(serializers.ModelSerializer):
             "id",
             "status",
             "generated_content",
+            "generated_html_email",
+            "email_subject",
+            "email_preview_text",
             "created_at",
             "updated_at",
         ]
@@ -174,6 +184,12 @@ class LocationCampaignDetailSerializer(serializers.ModelSerializer):
         if obj.created_by:
             return obj.created_by.get_full_name() or obj.created_by.username
         return None
+
+    def get_has_html_email(self, obj):
+        return bool(obj.generated_html_email)
+
+    def get_email_recipient_count(self, obj):
+        return obj.email_recipients.count()
 
 
 class LocationCampaignCreateUpdateSerializer(serializers.ModelSerializer):
@@ -218,3 +234,82 @@ class CampaignRejectSerializer(serializers.Serializer):
         if not value.strip():
             raise serializers.ValidationError("Comments are required for rejection.")
         return value
+
+
+# ========== Email Serializers ==========
+
+
+class EmailRecipientSerializer(serializers.ModelSerializer):
+    """Serializer for email recipient details."""
+
+    class Meta:
+        model = EmailRecipient
+        fields = [
+            "id",
+            "email",
+            "name",
+            "status",
+            "sent_at",
+            "error_message",
+            "created_at",
+        ]
+        read_only_fields = ["id", "status", "sent_at", "error_message", "created_at"]
+
+
+class EmailRecipientCreateSerializer(serializers.Serializer):
+    """Serializer for adding email recipients."""
+
+    recipients = serializers.ListField(
+        child=serializers.DictField(
+            child=serializers.CharField(allow_blank=True),
+        ),
+        min_length=1,
+    )
+
+    def validate_recipients(self, value):
+        """Validate that each recipient has a valid email."""
+        validated = []
+        for item in value:
+            email = item.get("email", "").strip().lower()
+            if not email:
+                continue
+            if "@" not in email:
+                continue
+            validated.append({
+                "email": email,
+                "name": item.get("name", "").strip(),
+            })
+
+        if not validated:
+            raise serializers.ValidationError("At least one valid email is required.")
+
+        return validated
+
+
+class EmailPreviewSerializer(serializers.Serializer):
+    """Serializer for email preview response."""
+
+    has_html_email = serializers.BooleanField()
+    email_subject = serializers.CharField(allow_blank=True)
+    email_preview_text = serializers.CharField(allow_blank=True)
+    generated_html_email = serializers.CharField(allow_blank=True)
+
+
+class EmailStatsSerializer(serializers.Serializer):
+    """Serializer for email sending statistics."""
+
+    total = serializers.IntegerField()
+    pending = serializers.IntegerField()
+    sent = serializers.IntegerField()
+    failed = serializers.IntegerField()
+
+
+class SendEmailsSerializer(serializers.Serializer):
+    """Serializer for send emails request."""
+
+    recipient_ids = serializers.ListField(
+        child=serializers.UUIDField(),
+        required=False,
+        allow_empty=True,
+    )
+    async_sending = serializers.BooleanField(default=True)

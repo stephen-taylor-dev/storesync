@@ -114,6 +114,11 @@ class LocationCampaign(UUIDModel, TimeStampedModel):
     # AI-generated or manually edited final content
     generated_content = models.TextField(blank=True)
 
+    # HTML email fields
+    generated_html_email = models.TextField(blank=True)
+    email_subject = models.CharField(max_length=255, blank=True)
+    email_preview_text = models.CharField(max_length=255, blank=True)
+
     # Vector embedding for semantic search (1536 dimensions for OpenAI embeddings)
     content_embedding = VectorField(dimensions=1536, null=True, blank=True)
 
@@ -204,3 +209,37 @@ class ApprovalStep(UUIDModel, TimeStampedModel):
 
     def __str__(self):
         return f"{self.campaign} - {self.decision} by {self.approver}"
+
+
+class EmailRecipient(UUIDModel, TimeStampedModel):
+    """Email recipient for campaign email delivery."""
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        SENT = "sent", "Sent"
+        FAILED = "failed", "Failed"
+
+    campaign = models.ForeignKey(
+        LocationCampaign,
+        on_delete=models.CASCADE,
+        related_name="email_recipients",
+    )
+    email = models.EmailField()
+    name = models.CharField(max_length=255, blank=True)
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+    )
+    sent_at = models.DateTimeField(null=True, blank=True)
+    error_message = models.TextField(blank=True)
+
+    class Meta:
+        db_table = "email_recipients"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["campaign", "status"]),
+        ]
+
+    def __str__(self):
+        return f"{self.email} - {self.campaign} ({self.status})"

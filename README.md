@@ -55,6 +55,14 @@ Draft → Pending Review → Approved → Scheduled → Active → Completed
 - **RAG (Retrieval-Augmented Generation)**: Uses successful past campaigns as context for better results
 - **Semantic Search**: Find similar campaigns using vector embeddings
 
+### AI HTML Email Marketing
+- **HTML Email Generation**: AI converts plain text campaigns into responsive, brand-styled HTML emails
+- **Campaign-Aware Styling**: Email colors and mood automatically match campaign type (seasonal, clearance, grand opening, etc.)
+- **Email Preview**: Desktop/mobile preview with regeneration capability
+- **Recipient Management**: Add recipients via bulk input, track delivery status
+- **Batch Sending**: Rate-limited email delivery with status tracking (pending, sent, failed)
+- **Test Emails**: Send preview emails before full campaign delivery
+
 ### Multi-Brand Support
 - Manage multiple brands from a single platform
 - Brand-specific templates and settings
@@ -115,6 +123,81 @@ Draft → Pending Review → Approved → Scheduled → Active → Completed
                    │  - Notifications│
                    └─────────────────┘
 ```
+
+## Data Model
+
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│                              MODELS                                      │
+├──────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  ┌─────────────┐    ┌─────────────┐    ┌──────────────────┐              │
+│  │    User     │    │    Brand    │    │ CampaignTemplate │              │
+│  ├─────────────┤    ├─────────────┤    ├──────────────────┤              │
+│  │ id (BigInt) │    │ id (UUID)   │    │ id (UUID)        │              │
+│  │ email       │    │ name        │    │ brand_id → Brand │              │
+│  │ role        │    │ slug        │    │ name             │              │
+│  │ preferences │    │ logo        │    │ content_template │              │
+│  │ brands (M2M)│───►│ settings    │◄───│ campaign_type    │              │
+│  └─────────────┘    └─────────────┘    └──────────────────┘              │
+│         │                  │                    │                        │
+│         │                  ▼                    │                        │
+│         │           ┌─────────────┐             │                        │
+│         │           │  Location   │             │                        │
+│         │           ├─────────────┤             │                        │
+│         │           │ id (UUID)   │             │                        │
+│         │           │ brand_id ───┼─► Brand     │                        │
+│         │           │ name        │             │                        │
+│         │           │ store_number│             │                        │
+│         │           │ address     │             │                        │
+│         │           │ attributes  │             │                        │
+│         │           └──────┬──────┘             │                        │
+│         │                  │                    │                        │
+│         │                  ▼                    ▼                        │
+│         │        ┌───────────────────────────────────┐                   │
+│         │        │       LocationCampaign            │                   │
+│         │        ├───────────────────────────────────┤                   │
+│         │        │ id (UUID)                         │                   │
+│         │        │ location_id ──────► Location      │                   │
+│         │        │ template_id ──────► CampaignTemplate                  │
+│         └───────►│ created_by_id ────► User          │                   │
+│                  │ status (FSM)                      │                   │
+│                  │ generated_content                 │                   │
+│                  │ generated_html_email              │                   │
+│                  │ content_embedding (Vector 1536)   │                   │
+│                  │ scheduled_start / scheduled_end   │                   │
+│                  └───────────────┬───────────────────┘                   │
+│                                  │                                       │
+│                       ┌──────────┴──────────┐                            │
+│                       ▼                     ▼                            │
+│              ┌─────────────────┐   ┌─────────────────┐                   │
+│              │  ApprovalStep   │   │ EmailRecipient  │                   │
+│              ├─────────────────┤   ├─────────────────┤                   │
+│              │ id (UUID)       │   │ id (UUID)       │                   │
+│              │ campaign_id ────┼─► │ campaign_id ────┼─► LocationCampaign│
+│              │ approver_id ────┼─► User              │                   │
+│              │ decision        │   │ email           │                   │
+│              │ comments        │   │ name            │                   │
+│              │ previous_status │   │ status          │                   │
+│              │ new_status      │   │ sent_at         │                   │
+│              └─────────────────┘   │ error_message   │                   │
+│                                    └─────────────────┘                   │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+### Key Relationships
+
+| Relationship | Type | Description |
+|--------------|------|-------------|
+| Brand → Locations | 1:N | A brand has many store locations |
+| Brand → CampaignTemplates | 1:N | A brand has many reusable templates |
+| User ↔ Brands | M:N | Users can manage multiple brands (via junction table) |
+| Location → Campaigns | 1:N | A location has many campaigns |
+| Template → Campaigns | 1:N | A template is used by many campaigns |
+| User → Campaigns | 1:N | A user creates many campaigns (created_by) |
+| Campaign → ApprovalSteps | 1:N | A campaign has an audit trail of approvals |
+| User → ApprovalSteps | 1:N | A user makes many approval decisions (approver) |
+| Campaign → EmailRecipients | 1:N | A campaign has many email recipients |
 
 ## Getting Started
 
@@ -230,6 +313,16 @@ POST         /api/v1/campaigns/{id}/schedule/
 # AI Features
 POST         /api/v1/campaigns/{id}/generate_content/
 POST         /api/v1/campaigns/similar/
+
+# HTML Email
+POST         /api/v1/campaigns/{id}/generate_html_email/
+GET          /api/v1/campaigns/{id}/email_preview/
+POST         /api/v1/campaigns/{id}/add_recipients/
+GET          /api/v1/campaigns/{id}/recipients/
+POST         /api/v1/campaigns/{id}/send_emails/
+POST         /api/v1/campaigns/{id}/send_test_email/
+GET          /api/v1/campaigns/{id}/email_status/
+DELETE       /api/v1/campaigns/{id}/clear_recipients/
 ```
 
 Full API documentation available at `/api/docs/` (Swagger UI) or `/api/redoc/`.
@@ -294,8 +387,16 @@ npm run test:e2e
 | `OPENAI_API_KEY` | OpenAI API key for AI features | No* |
 | `ALLOWED_HOSTS` | Allowed host headers | Yes (production) |
 | `CORS_ALLOWED_ORIGINS` | Allowed CORS origins | Yes |
+| `EMAIL_HOST` | SMTP server hostname | No** |
+| `EMAIL_PORT` | SMTP server port | No (default: 587) |
+| `EMAIL_HOST_USER` | SMTP username | No** |
+| `EMAIL_HOST_PASSWORD` | SMTP password | No** |
+| `EMAIL_USE_TLS` | Use TLS for SMTP | No (default: True) |
+| `DEFAULT_FROM_EMAIL` | Default sender address | No |
 
 *AI features will be disabled without an OpenAI API key
+
+**Email sending features require SMTP configuration
 
 ## User Roles
 
@@ -310,11 +411,20 @@ npm run test:e2e
 
 StoreSync uses Celery for background processing:
 
+### On-Demand Tasks
 - **Content Generation**: Async AI content generation with retries
-- **Campaign Activation**: Auto-activate scheduled campaigns (every 5 min)
-- **Campaign Completion**: Auto-complete expired campaigns (every 5 min)
-- **Approval Digest**: Daily email summary of pending approvals
+- **HTML Email Generation**: Convert plain text to responsive HTML emails
+- **Email Batch Sending**: Rate-limited email delivery (5 emails/second)
+- **Test Email**: Send preview emails to verify content
 - **Embedding Computation**: Batch vector embedding generation
+
+### Scheduled Tasks (Celery Beat)
+| Task | Schedule | Description |
+|------|----------|-------------|
+| Activate Campaigns | Every 5 min | Transition scheduled → active |
+| Complete Campaigns | Every 5 min | Transition active → completed (past end date) |
+| Approval Digest | Daily 9 AM | Email summary of pending approvals |
+| Data Cleanup | Weekly (Sun 2 AM) | Remove old approval history (>1 year) |
 
 Monitor tasks at http://localhost:5555 (Celery Flower).
 

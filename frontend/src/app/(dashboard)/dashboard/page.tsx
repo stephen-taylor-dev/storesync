@@ -230,9 +230,9 @@ export default function DashboardPage() {
               icon={Megaphone}
             />
             <QuickAction
-              title="Add Location"
-              description="Register a new store location"
-              href="/dashboard/locations/new"
+              title="Manage Locations"
+              description="View and manage store locations"
+              href="/dashboard/locations"
               icon={MapPin}
             />
             <QuickAction

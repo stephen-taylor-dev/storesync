@@ -38,8 +38,7 @@ export default function CampaignEditPage({ params }: CampaignEditPageProps) {
       <ErrorState
         title="Cannot edit campaign"
         message={`This campaign is in "${campaign.status}" status and cannot be edited. Only draft or rejected campaigns can be modified.`}
-        actionLabel="Back to Campaign"
-        onAction={() => window.history.back()}
+        onRetry={() => window.history.back()}
       />
     );
   }

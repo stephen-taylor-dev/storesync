@@ -137,8 +137,8 @@ export function CampaignForm({ campaign }: CampaignFormProps) {
         location: data.location,
         template: data.template,
         customizations,
-        scheduled_start: data.scheduled_start || null,
-        scheduled_end: data.scheduled_end || null,
+        scheduled_start: data.scheduled_start || undefined,
+        scheduled_end: data.scheduled_end || undefined,
       };
 
       if (isEditing && campaign) {

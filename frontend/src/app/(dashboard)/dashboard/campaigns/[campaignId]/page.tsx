@@ -28,6 +28,8 @@ import { StatusBadge } from "@/components/campaigns/status-badge";
 import { StatusWorkflow } from "@/components/campaigns/status-workflow";
 import { ContentPreview } from "@/components/campaigns/content-preview";
 import { SimilarCampaigns } from "@/components/campaigns/similar-campaigns";
+import { EmailPreview } from "@/components/campaigns/email-preview";
+import { EmailSender } from "@/components/campaigns/email-sender";
 import { ApprovalHistory } from "@/components/approvals/approval-history";
 import { useToast } from "@/hooks/use-toast";
 import { formatDate, formatDateTime } from "@/lib/utils";
@@ -128,6 +130,12 @@ export default function CampaignDetailPage() {
             onContentUpdate={refetch}
             editable={["draft", "rejected"].includes(campaign.status)}
           />
+
+          {/* HTML Email Preview */}
+          <EmailPreview campaign={campaign} onEmailGenerated={refetch} />
+
+          {/* Email Recipients & Sending */}
+          <EmailSender campaign={campaign} onSendComplete={refetch} />
 
           {/* Customizations */}
           {campaign.customizations &&

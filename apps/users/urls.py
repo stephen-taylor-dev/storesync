@@ -14,5 +14,6 @@ urlpatterns = [
     # User endpoints
     path("register/", views.RegisterView.as_view(), name="register"),
     path("me/", views.CurrentUserView.as_view(), name="current_user"),
+    path("me/preferences/", views.UserPreferencesView.as_view(), name="user_preferences"),
     path("change-password/", views.ChangePasswordView.as_view(), name="change_password"),
 ]

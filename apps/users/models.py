@@ -4,6 +4,20 @@ from django.db import models
 from apps.core.models import TimeStampedModel
 
 
+def default_user_preferences():
+    """Default preferences for new users."""
+    return {
+        "notifications": {
+            "email_campaign_submitted": True,
+            "email_campaign_approved": True,
+            "email_campaign_rejected": True,
+        },
+        "display": {
+            "theme": "system",
+        },
+    }
+
+
 class User(AbstractUser, TimeStampedModel):
     """Extended user model with role and brand association."""
 
@@ -23,6 +37,7 @@ class User(AbstractUser, TimeStampedModel):
         related_name="users",
         blank=True,
     )
+    preferences = models.JSONField(default=default_user_preferences)
 
     class Meta:
         db_table = "users"

@@ -15,9 +15,14 @@ from .serializers import (
     CampaignTemplateCreateUpdateSerializer,
     CampaignTemplateDetailSerializer,
     CampaignTemplateListSerializer,
+    EmailPreviewSerializer,
+    EmailRecipientCreateSerializer,
+    EmailRecipientSerializer,
+    EmailStatsSerializer,
     LocationCampaignCreateUpdateSerializer,
     LocationCampaignDetailSerializer,
     LocationCampaignListSerializer,
+    SendEmailsSerializer,
 )
 
 
@@ -981,3 +986,373 @@ Compute embeddings for multiple campaigns at once.
                 {"error": f"Bulk embedding failed: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+    # ========== HTML Email Endpoints ==========
+
+    @extend_schema(
+        summary="Generate HTML email",
+        description="""
+Generate HTML email content from the campaign's plain text content.
+
+Uses AI to create a responsive, mobile-friendly HTML email with:
+- Inline CSS for email client compatibility
+- Table-based layout
+- Brand-styled design
+- Personalization placeholders
+
+Also generates email subject line and preview text.
+        """,
+        request={
+            "application/json": {
+                "type": "object",
+                "properties": {
+                    "async_generation": {"type": "boolean", "default": False},
+                },
+            }
+        },
+        responses={
+            200: {
+                "type": "object",
+                "properties": {
+                    "status": {"type": "string"},
+                    "email_subject": {"type": "string"},
+                    "email_preview_text": {"type": "string"},
+                    "html_length": {"type": "integer"},
+                },
+            }
+        },
+        tags=["location-campaigns"],
+    )
+    @action(detail=True, methods=["post"])
+    def generate_html_email(self, request, pk=None):
+        """Generate HTML email content for a campaign."""
+        from .services.content_generator import ContentGeneratorService
+        from .tasks import generate_html_email_content
+
+        campaign = self.get_object()
+
+        if not campaign.generated_content:
+            return Response(
+                {"error": "Campaign must have generated content before creating HTML email."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        async_generation = request.data.get("async_generation", False)
+
+        if async_generation:
+            task = generate_html_email_content.delay(str(campaign.id))
+            return Response({
+                "status": "queued",
+                "task_id": task.id,
+                "message": "HTML email generation queued.",
+            })
+
+        try:
+            service = ContentGeneratorService()
+            result = service.generate_full_email(campaign)
+
+            campaign.generated_html_email = result["html"]
+            campaign.email_subject = result["subject"]
+            campaign.email_preview_text = result["preview_text"]
+            campaign.save(update_fields=[
+                "generated_html_email",
+                "email_subject",
+                "email_preview_text",
+                "updated_at",
+            ])
+
+            return Response({
+                "status": "success",
+                "email_subject": result["subject"],
+                "email_preview_text": result["preview_text"],
+                "html_length": len(result["html"]),
+            })
+
+        except Exception as e:
+            return Response(
+                {"error": f"HTML email generation failed: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    @extend_schema(
+        summary="Get email preview",
+        description="Get the email preview data including HTML content, subject, and preview text.",
+        responses={200: EmailPreviewSerializer},
+        tags=["location-campaigns"],
+    )
+    @action(detail=True, methods=["get"])
+    def email_preview(self, request, pk=None):
+        """Get email preview data."""
+        campaign = self.get_object()
+
+        return Response({
+            "has_html_email": bool(campaign.generated_html_email),
+            "email_subject": campaign.email_subject,
+            "email_preview_text": campaign.email_preview_text,
+            "generated_html_email": campaign.generated_html_email,
+        })
+
+    @extend_schema(
+        summary="Add email recipients",
+        description="""
+Add email recipients to a campaign.
+
+**Request body:**
+- `recipients`: Array of objects with `email` (required) and `name` (optional)
+
+Duplicate emails are automatically skipped.
+        """,
+        request=EmailRecipientCreateSerializer,
+        responses={
+            200: {
+                "type": "object",
+                "properties": {
+                    "created": {"type": "integer"},
+                    "skipped": {"type": "integer"},
+                    "errors": {"type": "array"},
+                },
+            }
+        },
+        tags=["location-campaigns"],
+    )
+    @action(detail=True, methods=["post"])
+    def add_recipients(self, request, pk=None):
+        """Add email recipients to a campaign."""
+        from .services.email_service import EmailService
+
+        campaign = self.get_object()
+
+        serializer = EmailRecipientCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        service = EmailService()
+        result = service.add_recipients(
+            campaign,
+            serializer.validated_data["recipients"],
+        )
+
+        return Response(result)
+
+    @extend_schema(
+        summary="Get email recipients",
+        description="Get paginated list of email recipients for a campaign.",
+        parameters=[
+            {
+                "name": "status",
+                "in": "query",
+                "type": "string",
+                "enum": ["pending", "sent", "failed"],
+            },
+        ],
+        responses={
+            200: {
+                "type": "object",
+                "properties": {
+                    "count": {"type": "integer"},
+                    "results": {"type": "array"},
+                },
+            }
+        },
+        tags=["location-campaigns"],
+    )
+    @action(detail=True, methods=["get"])
+    def recipients(self, request, pk=None):
+        """Get email recipients for a campaign."""
+        campaign = self.get_object()
+
+        recipients = campaign.email_recipients.all()
+
+        # Filter by status if provided
+        status_filter = request.query_params.get("status")
+        if status_filter:
+            recipients = recipients.filter(status=status_filter)
+
+        # Paginate
+        page = self.paginate_queryset(recipients)
+        if page is not None:
+            serializer = EmailRecipientSerializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = EmailRecipientSerializer(recipients, many=True)
+        return Response(serializer.data)
+
+    @extend_schema(
+        summary="Send campaign emails",
+        description="""
+Send the campaign email to recipients.
+
+**Options:**
+- `recipient_ids`: Optional list of recipient UUIDs to send to (defaults to all pending)
+- `async_sending`: Run as background task (default: true)
+        """,
+        request=SendEmailsSerializer,
+        responses={
+            200: {
+                "type": "object",
+                "properties": {
+                    "status": {"type": "string"},
+                    "task_id": {"type": "string"},
+                    "sent": {"type": "integer"},
+                    "failed": {"type": "integer"},
+                },
+            }
+        },
+        tags=["location-campaigns"],
+    )
+    @action(detail=True, methods=["post"])
+    def send_emails(self, request, pk=None):
+        """Send campaign emails to recipients."""
+        from .services.email_service import EmailService
+        from .tasks import send_campaign_emails
+
+        campaign = self.get_object()
+
+        # Only allow sending emails for active campaigns
+        if campaign.status != LocationCampaign.Status.ACTIVE:
+            return Response(
+                {"error": "Emails can only be sent for active campaigns."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not campaign.generated_html_email:
+            return Response(
+                {"error": "Campaign must have HTML email content before sending."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = SendEmailsSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        recipient_ids = serializer.validated_data.get("recipient_ids")
+        async_sending = serializer.validated_data.get("async_sending", True)
+
+        if async_sending:
+            recipient_id_strs = [str(rid) for rid in recipient_ids] if recipient_ids else None
+            task = send_campaign_emails.delay(str(campaign.id), recipient_id_strs)
+            return Response({
+                "status": "queued",
+                "task_id": task.id,
+                "message": "Email sending queued.",
+            })
+
+        # Synchronous sending
+        try:
+            service = EmailService()
+
+            if recipient_ids:
+                from .models import EmailRecipient
+                recipients = campaign.email_recipients.filter(
+                    id__in=recipient_ids,
+                    status=EmailRecipient.Status.PENDING,
+                )
+            else:
+                recipients = None
+
+            stats = service.send_campaign_batch(campaign, recipients)
+
+            return Response({
+                "status": "success",
+                **stats,
+            })
+
+        except Exception as e:
+            return Response(
+                {"error": f"Email sending failed: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    @extend_schema(
+        summary="Get email status",
+        description="Get email sending statistics for a campaign.",
+        responses={200: EmailStatsSerializer},
+        tags=["location-campaigns"],
+    )
+    @action(detail=True, methods=["get"])
+    def email_status(self, request, pk=None):
+        """Get email sending statistics."""
+        from .services.email_service import EmailService
+
+        campaign = self.get_object()
+
+        service = EmailService()
+        stats = service.get_campaign_email_stats(campaign)
+
+        return Response(stats)
+
+    @extend_schema(
+        summary="Send test email",
+        description="Send a test email to preview the campaign email.",
+        request={
+            "application/json": {
+                "type": "object",
+                "properties": {
+                    "email": {"type": "string", "format": "email"},
+                },
+                "required": ["email"],
+            }
+        },
+        responses={
+            200: {
+                "type": "object",
+                "properties": {
+                    "status": {"type": "string"},
+                    "sent_to": {"type": "string"},
+                },
+            }
+        },
+        tags=["location-campaigns"],
+    )
+    @action(detail=True, methods=["post"])
+    def send_test_email(self, request, pk=None):
+        """Send a test email."""
+        from .tasks import send_test_email
+
+        campaign = self.get_object()
+
+        test_email = request.data.get("email")
+        if not test_email:
+            return Response(
+                {"error": "Email address is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not campaign.generated_html_email:
+            return Response(
+                {"error": "Campaign must have HTML email content."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        result = send_test_email(str(campaign.id), test_email)
+
+        if result["status"] == "error":
+            return Response(
+                {"error": result.get("message", "Failed to send test email")},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        return Response(result)
+
+    @extend_schema(
+        summary="Clear pending recipients",
+        description="Remove all pending (not yet sent) recipients from a campaign.",
+        responses={
+            200: {
+                "type": "object",
+                "properties": {
+                    "deleted": {"type": "integer"},
+                },
+            }
+        },
+        tags=["location-campaigns"],
+    )
+    @action(detail=True, methods=["post"])
+    def clear_recipients(self, request, pk=None):
+        """Clear pending recipients."""
+        from .services.email_service import EmailService
+
+        campaign = self.get_object()
+
+        service = EmailService()
+        deleted = service.clear_recipients(campaign)
+
+        return Response({"deleted": deleted})

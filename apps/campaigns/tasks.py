@@ -18,6 +18,9 @@ def generate_campaign_content(self, campaign_id: str) -> dict:
     """
     Generate AI-powered content for a campaign using the template and location data.
 
+    Uses ContentGeneratorService to generate content via LangChain/OpenAI
+    and computes vector embeddings for similarity search.
+
     Args:
         campaign_id: UUID of the LocationCampaign to generate content for
 
@@ -25,6 +28,7 @@ def generate_campaign_content(self, campaign_id: str) -> dict:
         dict with status and generated content
     """
     from apps.campaigns.models import LocationCampaign
+    from apps.campaigns.services.content_generator import ContentGeneratorService
 
     try:
         campaign = LocationCampaign.objects.select_related(
@@ -33,41 +37,22 @@ def generate_campaign_content(self, campaign_id: str) -> dict:
 
         logger.info(f"Generating content for campaign {campaign_id}")
 
-        # TODO: Implement actual AI content generation with LangChain/OpenAI
-        # For now, use template substitution as placeholder
-        template_content = campaign.template.content_template
-        location = campaign.location
+        service = ContentGeneratorService()
+        content, embedding = service.generate_and_embed(campaign)
 
-        # Build context from location data
-        context = {
-            "location_name": location.name,
-            "store_number": location.store_number,
-            "brand_name": location.brand.name,
-            "city": location.address.get("city", ""),
-            "state": location.address.get("state", ""),
-            "street": location.address.get("street", ""),
-            **location.attributes,
-            **campaign.customizations,
-        }
-
-        # Simple placeholder substitution
-        generated_content = template_content
-        for key, value in context.items():
-            generated_content = generated_content.replace(
-                f"{{{{ {key} }}}}", str(value)
-            )
-            generated_content = generated_content.replace(f"{{{{{key}}}}}", str(value))
-
-        # Update campaign with generated content
-        campaign.generated_content = generated_content
-        campaign.save(update_fields=["generated_content", "updated_at"])
+        # Update campaign with generated content and embedding
+        campaign.generated_content = content
+        if embedding:
+            campaign.content_embedding = embedding
+        campaign.save(update_fields=["generated_content", "content_embedding", "updated_at"])
 
         logger.info(f"Content generated successfully for campaign {campaign_id}")
 
         return {
             "status": "success",
             "campaign_id": str(campaign_id),
-            "content_length": len(generated_content),
+            "content_length": len(content),
+            "has_embedding": embedding is not None,
         }
 
     except LocationCampaign.DoesNotExist:
@@ -316,3 +301,191 @@ def bulk_generate_campaign_content(campaign_ids: list[str]) -> dict:
         task_ids[campaign_id] = result.id
 
     return {"queued": len(task_ids), "task_ids": task_ids}
+
+
+# ========== HTML Email Tasks ==========
+
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=60)
+def generate_html_email_content(self, campaign_id: str) -> dict:
+    """
+    Generate HTML email content for a campaign.
+
+    Generates:
+    - HTML email from plain text content
+    - Email subject line
+    - Email preview text
+
+    Args:
+        campaign_id: UUID of the LocationCampaign
+
+    Returns:
+        dict with status and generated content info
+    """
+    from apps.campaigns.models import LocationCampaign
+    from apps.campaigns.services.content_generator import ContentGeneratorService
+
+    try:
+        campaign = LocationCampaign.objects.select_related(
+            "template", "location", "location__brand"
+        ).get(id=campaign_id)
+
+        if not campaign.generated_content:
+            logger.error(f"Campaign {campaign_id} has no content to convert to HTML")
+            return {"status": "error", "message": "No content available"}
+
+        logger.info(f"Generating HTML email for campaign {campaign_id}")
+
+        service = ContentGeneratorService()
+        result = service.generate_full_email(campaign)
+
+        # Save to campaign
+        campaign.generated_html_email = result["html"]
+        campaign.email_subject = result["subject"]
+        campaign.email_preview_text = result["preview_text"]
+        campaign.save(update_fields=[
+            "generated_html_email",
+            "email_subject",
+            "email_preview_text",
+            "updated_at",
+        ])
+
+        logger.info(f"HTML email generated for campaign {campaign_id}")
+
+        return {
+            "status": "success",
+            "campaign_id": str(campaign_id),
+            "subject": result["subject"],
+            "html_length": len(result["html"]),
+        }
+
+    except LocationCampaign.DoesNotExist:
+        logger.error(f"Campaign {campaign_id} not found")
+        return {"status": "error", "message": "Campaign not found"}
+
+    except Exception as exc:
+        logger.exception(f"Error generating HTML email for campaign {campaign_id}")
+        raise self.retry(exc=exc)
+
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=30)
+def send_campaign_emails(
+    self,
+    campaign_id: str,
+    recipient_ids: list[str] | None = None,
+) -> dict:
+    """
+    Send campaign emails to recipients.
+
+    Args:
+        campaign_id: UUID of the LocationCampaign
+        recipient_ids: Optional list of EmailRecipient UUIDs (defaults to all pending)
+
+    Returns:
+        dict with sending statistics
+    """
+    from apps.campaigns.models import EmailRecipient, LocationCampaign
+    from apps.campaigns.services.email_service import EmailService
+
+    try:
+        campaign = LocationCampaign.objects.get(id=campaign_id)
+
+        # Only allow sending for active campaigns
+        if campaign.status != LocationCampaign.Status.ACTIVE:
+            logger.error(f"Campaign {campaign_id} is not active (status: {campaign.status})")
+            return {"status": "error", "message": "Emails can only be sent for active campaigns"}
+
+        if not campaign.generated_html_email:
+            logger.error(f"Campaign {campaign_id} has no HTML email content")
+            return {"status": "error", "message": "No HTML email content"}
+
+        # Get recipients
+        if recipient_ids:
+            recipients = EmailRecipient.objects.filter(
+                campaign=campaign,
+                id__in=recipient_ids,
+                status=EmailRecipient.Status.PENDING,
+            )
+        else:
+            recipients = campaign.email_recipients.filter(
+                status=EmailRecipient.Status.PENDING
+            )
+
+        logger.info(
+            f"Sending emails for campaign {campaign_id} to {recipients.count()} recipients"
+        )
+
+        service = EmailService()
+        stats = service.send_campaign_batch(campaign, recipients)
+
+        return {
+            "status": "success",
+            "campaign_id": str(campaign_id),
+            **stats,
+        }
+
+    except LocationCampaign.DoesNotExist:
+        logger.error(f"Campaign {campaign_id} not found")
+        return {"status": "error", "message": "Campaign not found"}
+
+    except Exception as exc:
+        logger.exception(f"Error sending emails for campaign {campaign_id}")
+        raise self.retry(exc=exc)
+
+
+@shared_task
+def send_test_email(campaign_id: str, test_email: str) -> dict:
+    """
+    Send a test email for preview purposes.
+
+    Args:
+        campaign_id: UUID of the LocationCampaign
+        test_email: Email address to send test to
+
+    Returns:
+        dict with status
+    """
+    from django.core.mail import EmailMultiAlternatives
+
+    from apps.campaigns.models import LocationCampaign
+
+    try:
+        campaign = LocationCampaign.objects.get(id=campaign_id)
+
+        if not campaign.generated_html_email:
+            return {"status": "error", "message": "No HTML email content"}
+
+        # Create test email with placeholder values
+        html_content = campaign.generated_html_email.replace(
+            "{{recipient_name}}", "Test Recipient"
+        ).replace(
+            "{{unsubscribe_link}}", "#test-unsubscribe"
+        )
+
+        text_content = campaign.generated_content or campaign.email_subject or ""
+        subject = f"[TEST] {campaign.email_subject or 'Campaign Email'}"
+
+        from_addr = getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@storesync.com")
+        email = EmailMultiAlternatives(
+            subject=subject,
+            body=text_content,
+            from_email=from_addr,
+            to=[test_email],
+        )
+        email.attach_alternative(html_content, "text/html")
+        email.send()
+
+        logger.info(f"Sent test email for campaign {campaign_id} to {test_email}")
+
+        return {
+            "status": "success",
+            "campaign_id": str(campaign_id),
+            "sent_to": test_email,
+        }
+
+    except LocationCampaign.DoesNotExist:
+        return {"status": "error", "message": "Campaign not found"}
+
+    except Exception as e:
+        logger.exception(f"Error sending test email: {e}")
+        return {"status": "error", "message": str(e)}

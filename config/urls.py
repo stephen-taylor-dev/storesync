@@ -22,6 +22,7 @@ urlpatterns = [
         include(
             [
                 path("auth/", include("apps.users.urls")),
+                path("users/", include("apps.users.management_urls")),
                 path("brands/", include("apps.brands.urls")),
                 path("locations/", include(all_locations_urlpatterns)),
                 path("campaigns/", include("apps.campaigns.urls")),

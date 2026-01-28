@@ -1,3 +1,24 @@
+// User Preferences types
+export interface NotificationPreferences {
+  email_campaign_submitted: boolean;
+  email_campaign_approved: boolean;
+  email_campaign_rejected: boolean;
+}
+
+export interface DisplayPreferences {
+  theme: "light" | "dark" | "system";
+}
+
+export interface UserPreferences {
+  notifications: NotificationPreferences;
+  display: DisplayPreferences;
+}
+
+export interface UserPreferencesUpdate {
+  notifications?: Partial<NotificationPreferences>;
+  display?: Partial<DisplayPreferences>;
+}
+
 // User types
 export interface User {
   id: number;
@@ -7,6 +28,7 @@ export interface User {
   last_name: string;
   role: "admin" | "brand_manager" | "location_manager" | "viewer";
   brands: string[];
+  preferences?: UserPreferences;
   date_joined: string;
 }
 
@@ -95,6 +117,11 @@ export interface LocationCampaign {
   status: CampaignStatus;
   customizations: Record<string, unknown>;
   generated_content: string;
+  generated_html_email?: string;
+  email_subject?: string;
+  email_preview_text?: string;
+  has_html_email?: boolean;
+  email_recipient_count?: number;
   scheduled_start: string | null;
   scheduled_end: string | null;
   approval_history?: ApprovalStep[];
@@ -132,4 +159,61 @@ export interface ImportResult {
     error: string;
   }>;
   message: string;
+}
+
+// Email types
+export type EmailRecipientStatus = "pending" | "sent" | "failed";
+
+export interface EmailRecipient {
+  id: string;
+  email: string;
+  name: string;
+  status: EmailRecipientStatus;
+  sent_at: string | null;
+  error_message: string;
+  created_at: string;
+}
+
+export interface EmailPreview {
+  has_html_email: boolean;
+  email_subject: string;
+  email_preview_text: string;
+  generated_html_email: string;
+}
+
+export interface EmailStats {
+  total: number;
+  pending: number;
+  sent: number;
+  failed: number;
+}
+
+export interface EmailGenerationResult {
+  status: string;
+  email_subject?: string;
+  email_preview_text?: string;
+  html_length?: number;
+  task_id?: string;
+  message?: string;
+}
+
+export interface AddRecipientsResult {
+  created: number;
+  skipped: number;
+  errors: Array<{
+    email: string;
+    error: string;
+  }>;
+}
+
+export interface SendEmailsResult {
+  status: string;
+  task_id?: string;
+  total?: number;
+  sent?: number;
+  failed?: number;
+  errors?: Array<{
+    email: string;
+    error: string;
+  }>;
 }

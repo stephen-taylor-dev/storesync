@@ -22,8 +22,9 @@ export interface LocationCampaignFormData {
   location: string;
   template: string;
   customizations?: Record<string, unknown>;
-  scheduled_start?: string | null;
-  scheduled_end?: string | null;
+  generated_content?: string;
+  scheduled_start?: string;
+  scheduled_end?: string;
 }
 
 // Filter/query types
