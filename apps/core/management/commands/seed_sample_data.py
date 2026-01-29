@@ -13,6 +13,7 @@ Usage:
 
 import csv
 import json
+from decimal import Decimal
 from pathlib import Path
 
 from django.contrib.auth import get_user_model
@@ -117,6 +118,8 @@ class Command(BaseCommand):
                             "has_gas_station": row["has_gas_station"].lower() == "true",
                             "store_type": row["store_type"],
                         },
+                        "latitude": Decimal(row["latitude"]) if row.get("latitude") else None,
+                        "longitude": Decimal(row["longitude"]) if row.get("longitude") else None,
                         "is_active": row["is_active"].lower() == "true",
                     },
                 )
