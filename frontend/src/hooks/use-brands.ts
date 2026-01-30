@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
-import type { Brand, Location, PaginatedResponse } from "@/types";
+import type { Brand, Location, LocationMapPoint, PaginatedResponse } from "@/types";
 import type {
   BrandFormData,
   LocationFormData,
@@ -194,6 +194,26 @@ export function useBulkImportLocations() {
       queryClient.invalidateQueries({ queryKey: locationKeys.list(brandId, {}) });
       queryClient.invalidateQueries({ queryKey: brandKeys.detail(brandId) });
     },
+  });
+}
+
+// Hook to fetch lightweight map points for all locations (no pagination)
+export function useMapLocations(filters: {
+  brand?: string;
+  search?: string;
+  is_active?: boolean;
+} = {}) {
+  return useQuery({
+    queryKey: [...locationKeys.all, "map_points", filters],
+    queryFn: async () => {
+      const response = await api.allLocations.mapPoints({
+        brand: filters.brand,
+        search: filters.search,
+        is_active: filters.is_active,
+      });
+      return response.data as LocationMapPoint[];
+    },
+    placeholderData: (previousData) => previousData,
   });
 }
 

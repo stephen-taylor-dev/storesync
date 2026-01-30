@@ -23,6 +23,7 @@ from .serializers import (
     LocationCreateUpdateSerializer,
     LocationDetailSerializer,
     LocationListSerializer,
+    LocationMapPointSerializer,
 )
 
 

@@ -60,11 +60,24 @@ export interface Location {
   store_number: string;
   address: Address;
   full_address?: string;
+  latitude?: number | null;
+  longitude?: number | null;
   attributes: Record<string, unknown>;
   is_active: boolean;
   campaign_count?: number;
   created_at: string;
   updated_at?: string;
+}
+
+export interface LocationMapPoint {
+  id: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+  brand: string;
+  brand_name: string;
+  store_number: string;
+  is_active: boolean;
 }
 
 // Campaign Template types

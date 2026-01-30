@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
-import { MapPin, Plus, Search, Building2, ChevronLeft, ChevronRight } from "lucide-react";
+import { MapPin, Plus, Search, Building2, ChevronLeft, ChevronRight, List, Map } from "lucide-react";
 import { useDebounce } from "@/hooks/use-debounce";
-import { useAllLocations } from "@/hooks/use-brands";
+import { useAllLocations, useMapLocations } from "@/hooks/use-brands";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -33,6 +34,12 @@ import {
 import { PageLoader } from "@/components/shared/loading-spinner";
 import { ErrorState, EmptyState } from "@/components/shared/error-state";
 import type { Location } from "@/types";
+
+// Dynamic import — Leaflet requires `window`
+const LocationMap = dynamic(
+  () => import("@/components/locations/location-map"),
+  { ssr: false }
+);
 
 interface LocationWithBrand extends Location {
   brand_name: string;
@@ -138,6 +145,7 @@ export default function LocationsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [brandFilter, setBrandFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [viewMode, setViewMode] = useState<"list" | "map">("list");
 
   // Debounce search query to avoid excessive API calls
   const debouncedSearch = useDebounce(searchQuery, 300);
@@ -146,6 +154,12 @@ export default function LocationsPage() {
   useEffect(() => {
     setPage(1);
   }, [debouncedSearch, brandFilter, statusFilter]);
+
+  const filterParams = {
+    brand: brandFilter !== "all" ? brandFilter : undefined,
+    search: debouncedSearch || undefined,
+    is_active: statusFilter !== "all" ? statusFilter === "active" : undefined,
+  };
 
   const {
     data: locations,
@@ -160,12 +174,15 @@ export default function LocationsPage() {
   } = useAllLocations({
     page,
     pageSize: 20,
-    brand: brandFilter !== "all" ? brandFilter : undefined,
-    search: debouncedSearch || undefined,
-    is_active: statusFilter !== "all" ? statusFilter === "active" : undefined,
+    ...filterParams,
   });
 
-  if (isLoading && page === 1) {
+  const {
+    data: mapPoints,
+    isLoading: mapLoading,
+  } = useMapLocations(filterParams);
+
+  if (isLoading && page === 1 && viewMode === "list") {
     return <PageLoader message="Loading locations..." />;
   }
 
@@ -214,8 +231,15 @@ export default function LocationsPage() {
             {currentBrandName ? `${currentBrandName} Locations` : "All Locations"}
           </CardTitle>
           <CardDescription>
-            {totalCount} {currentBrandName ? "" : "total "}locations
-            {!currentBrandName && ` across ${brands.length} brands`}
+            {viewMode === "map"
+              ? `${mapPoints?.length ?? 0} locations with coordinates`
+              : (
+                <>
+                  {totalCount} {currentBrandName ? "" : "total "}locations
+                  {!currentBrandName && ` across ${brands.length} brands`}
+                </>
+              )
+            }
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -254,104 +278,141 @@ export default function LocationsPage() {
                 <SelectItem value="inactive">Inactive</SelectItem>
               </SelectContent>
             </Select>
+
+            {/* View mode toggle */}
+            <div className="flex rounded-md border">
+              <Button
+                variant={viewMode === "list" ? "default" : "ghost"}
+                size="sm"
+                className="rounded-r-none"
+                onClick={() => setViewMode("list")}
+              >
+                <List className="mr-1 h-4 w-4" />
+                List
+              </Button>
+              <Button
+                variant={viewMode === "map" ? "default" : "ghost"}
+                size="sm"
+                className="rounded-l-none"
+                onClick={() => setViewMode("map")}
+              >
+                <Map className="mr-1 h-4 w-4" />
+                Map
+              </Button>
+            </div>
           </div>
 
           {/* Loading indicator for page changes */}
-          {isLoading && page > 1 && (
+          {isLoading && page > 1 && viewMode === "list" && (
             <div className="flex justify-center py-4">
               <div className="text-sm text-muted-foreground">Loading...</div>
             </div>
           )}
 
-          {/* Locations Table */}
-          {!isLoading && locations.length === 0 ? (
-            <EmptyState
-              icon={MapPin}
-              title="No locations found"
-              description={
-                searchQuery || brandFilter !== "all" || statusFilter !== "all"
-                  ? "No locations match your filters. Try adjusting your search criteria."
-                  : "No locations have been created yet. Add locations to your brands to get started."
-              }
-              action={
-                !searchQuery && brandFilter === "all" && statusFilter === "all" && brands.length > 0 && (
-                  <Button asChild>
-                    <Link href={`/dashboard/brands/${brands[0].id}`}>
-                      <Plus className="mr-2 h-4 w-4" />
-                      Add First Location
-                    </Link>
-                  </Button>
-                )
-              }
-              className="min-h-[300px]"
-            />
-          ) : !isLoading && (
-            <>
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Brand</TableHead>
-                      <TableHead>Store #</TableHead>
-                      <TableHead>City, State</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Campaigns</TableHead>
-                      <TableHead className="w-[80px]"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {(locations as LocationWithBrand[]).map((location) => (
-                      <TableRow key={location.id} className="hover:bg-muted/50">
-                        <TableCell className="font-medium">
-                          <Link
-                            href={`/dashboard/brands/${location.brand}`}
-                            className="hover:underline"
-                          >
-                            {location.name}
-                          </Link>
-                        </TableCell>
-                        <TableCell>
-                          <Link
-                            href={`/dashboard/brands/${location.brand}`}
-                            className="hover:underline text-muted-foreground"
-                          >
-                            {location.brand_name}
-                          </Link>
-                        </TableCell>
-                        <TableCell>{location.store_number}</TableCell>
-                        <TableCell>
-                          {location.address?.city && location.address?.state
-                            ? `${location.address.city}, ${location.address.state}`
-                            : location.full_address || "-"}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={location.is_active ? "success" : "secondary"}>
-                            {location.is_active ? "Active" : "Inactive"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{location.campaign_count ?? 0}</TableCell>
-                        <TableCell>
-                          <Button variant="ghost" size="sm" asChild>
-                            <Link href={`/dashboard/brands/${location.brand}`}>
-                              View
-                            </Link>
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+          {/* Map View */}
+          {viewMode === "map" && (
+            mapLoading ? (
+              <div className="flex justify-center py-12">
+                <div className="text-sm text-muted-foreground">Loading map...</div>
               </div>
+            ) : (
+              <LocationMap points={mapPoints ?? []} />
+            )
+          )}
 
-              {/* Pagination */}
-              <Pagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                totalCount={totalCount}
-                pageSize={pageSize}
-                onPageChange={setPage}
-              />
+          {/* List View */}
+          {viewMode === "list" && (
+            <>
+              {!isLoading && locations.length === 0 ? (
+                <EmptyState
+                  icon={MapPin}
+                  title="No locations found"
+                  description={
+                    searchQuery || brandFilter !== "all" || statusFilter !== "all"
+                      ? "No locations match your filters. Try adjusting your search criteria."
+                      : "No locations have been created yet. Add locations to your brands to get started."
+                  }
+                  action={
+                    !searchQuery && brandFilter === "all" && statusFilter === "all" && brands.length > 0 && (
+                      <Button asChild>
+                        <Link href={`/dashboard/brands/${brands[0].id}`}>
+                          <Plus className="mr-2 h-4 w-4" />
+                          Add First Location
+                        </Link>
+                      </Button>
+                    )
+                  }
+                  className="min-h-[300px]"
+                />
+              ) : !isLoading && (
+                <>
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Brand</TableHead>
+                          <TableHead>Store #</TableHead>
+                          <TableHead>City, State</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Campaigns</TableHead>
+                          <TableHead className="w-[80px]"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {(locations as LocationWithBrand[]).map((location) => (
+                          <TableRow key={location.id} className="hover:bg-muted/50">
+                            <TableCell className="font-medium">
+                              <Link
+                                href={`/dashboard/brands/${location.brand}`}
+                                className="hover:underline"
+                              >
+                                {location.name}
+                              </Link>
+                            </TableCell>
+                            <TableCell>
+                              <Link
+                                href={`/dashboard/brands/${location.brand}`}
+                                className="hover:underline text-muted-foreground"
+                              >
+                                {location.brand_name}
+                              </Link>
+                            </TableCell>
+                            <TableCell>{location.store_number}</TableCell>
+                            <TableCell>
+                              {location.address?.city && location.address?.state
+                                ? `${location.address.city}, ${location.address.state}`
+                                : location.full_address || "-"}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={location.is_active ? "success" : "secondary"}>
+                                {location.is_active ? "Active" : "Inactive"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>{location.campaign_count ?? 0}</TableCell>
+                            <TableCell>
+                              <Button variant="ghost" size="sm" asChild>
+                                <Link href={`/dashboard/brands/${location.brand}`}>
+                                  View
+                                </Link>
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  {/* Pagination */}
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    totalCount={totalCount}
+                    pageSize={pageSize}
+                    onPageChange={setPage}
+                  />
+                </>
+              )}
             </>
           )}
         </CardContent>

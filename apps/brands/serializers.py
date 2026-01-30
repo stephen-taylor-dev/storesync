@@ -101,9 +101,30 @@ class AllLocationsListSerializer(serializers.ModelSerializer):
             "store_number",
             "address",
             "full_address",
+            "latitude",
+            "longitude",
             "is_active",
             "campaign_count",
             "created_at",
+        ]
+
+
+class LocationMapPointSerializer(serializers.ModelSerializer):
+    """Lightweight serializer for map view — minimal payload per location."""
+
+    brand_name = serializers.CharField(source="brand.name", read_only=True)
+
+    class Meta:
+        model = Location
+        fields = [
+            "id",
+            "name",
+            "latitude",
+            "longitude",
+            "brand",
+            "brand_name",
+            "store_number",
+            "is_active",
         ]
 
 
@@ -124,6 +145,8 @@ class LocationDetailSerializer(serializers.ModelSerializer):
             "store_number",
             "address",
             "full_address",
+            "latitude",
+            "longitude",
             "attributes",
             "is_active",
             "campaign_count",

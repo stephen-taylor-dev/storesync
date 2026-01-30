@@ -188,6 +188,8 @@ export const api = {
     list: (params?: { page?: number; brand?: string; search?: string; is_active?: boolean; page_size?: number }) =>
       apiClient.get("/locations/", { params }),
     get: (id: string) => apiClient.get(`/locations/${id}/`),
+    mapPoints: (params?: { brand?: string; search?: string; is_active?: boolean }) =>
+      apiClient.get("/locations/map_points/", { params }),
   },
 
   // User Management (Admin only)
