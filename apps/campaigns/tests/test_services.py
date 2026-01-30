@@ -121,19 +121,23 @@ class TestContentGeneratorService:
         service = ContentGeneratorService()
 
         # Disable AI by passing use_ai=False
-        content = service.generate_content(draft_campaign, use_ai=False)
+        result = service.generate_content(draft_campaign, use_ai=False)
 
-        assert "Downtown Store" in content
+        assert "Downtown Store" in result.content
+        assert result.used_ai is False
+        assert result.fallback_reason is None
 
     def test_generate_content_no_api_key_falls_back(self, draft_campaign):
         """Test content generation falls back to template when no API key."""
         service = ContentGeneratorService()
         service.openai_api_key = None  # Ensure no API key
 
-        content = service.generate_content(draft_campaign, use_ai=True)
+        result = service.generate_content(draft_campaign, use_ai=True)
 
         # Should fall back to template rendering
-        assert "Downtown Store" in content
+        assert "Downtown Store" in result.content
+        assert result.used_ai is False
+        assert result.fallback_reason == "AI not configured"
 
     def test_generate_with_ai_mocked(self, draft_campaign):
         """Test AI content generation with mocked LLM."""
@@ -188,11 +192,12 @@ class TestContentGeneratorService:
         mock_embeddings.embed_query.return_value = mock_embedding
         service._embeddings = mock_embeddings
 
-        content, embedding = service.generate_and_embed(
+        result, embedding = service.generate_and_embed(
             draft_campaign, use_ai=False
         )
 
-        assert "Downtown Store" in content
+        assert "Downtown Store" in result.content
+        assert result.used_ai is False
         assert len(embedding) == 1536
 
 

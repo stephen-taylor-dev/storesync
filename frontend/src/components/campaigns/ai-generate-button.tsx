@@ -79,11 +79,17 @@ export function AIGenerateButton({
           description: "The content is being generated. Refresh to see updates.",
         });
       } else if (result.status === "success") {
+        let description: string;
+        if (result.used_ai) {
+          description = `Generated ${result.content_length} characters using AI.`;
+        } else if (result.fallback_reason) {
+          description = `Generated ${result.content_length} characters using template (AI unavailable).`;
+        } else {
+          description = `Generated ${result.content_length} characters from template.`;
+        }
         toast({
           title: "Content generated",
-          description: `Generated ${result.content_length} characters${
-            result.used_ai ? " using AI" : ""
-          }.`,
+          description,
         });
       }
 

@@ -8,6 +8,7 @@ This service handles:
 """
 
 import logging
+from dataclasses import dataclass
 from typing import Any
 
 from django.conf import settings
@@ -16,6 +17,15 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class GenerationResult:
+    """Result of content generation, tracking whether AI was actually used."""
+
+    content: str
+    used_ai: bool
+    fallback_reason: str | None = None
 
 
 class ContentGeneratorService:
@@ -347,7 +357,7 @@ Examples of Similar Successful Campaigns:
         campaign,
         use_ai: bool = True,
         additional_instructions: str | None = None,
-    ) -> str:
+    ) -> GenerationResult:
         """
         Generate content for a campaign.
 
@@ -362,33 +372,43 @@ Examples of Similar Successful Campaigns:
             additional_instructions: Optional additional AI instructions
 
         Returns:
-            Generated content string
+            GenerationResult with content, used_ai flag, and optional fallback_reason
         """
         context = self.build_context(campaign)
 
         # Try AI generation if enabled and configured
         if use_ai and self.openai_api_key:
             try:
-                return self.generate_with_ai(
+                content = self.generate_with_ai(
                     campaign,
                     context=context,
                     additional_instructions=additional_instructions,
                 )
+                return GenerationResult(content=content, used_ai=True)
             except Exception as e:
                 logger.warning(f"AI generation failed, falling back to template: {e}")
+                fallback_reason = "AI generation failed"
+        elif use_ai and not self.openai_api_key:
+            fallback_reason = "AI not configured"
+        else:
+            fallback_reason = None
 
         # Fall back to template rendering
         try:
-            return self.render_template(
+            content = self.render_template(
                 campaign.template.content_template,
                 context,
             )
         except ValueError:
             # If strict rendering fails, try safe rendering
-            return self.render_template_safe(
+            content = self.render_template_safe(
                 campaign.template.content_template,
                 context,
             )
+
+        return GenerationResult(
+            content=content, used_ai=False, fallback_reason=fallback_reason
+        )
 
     def generate_embedding(self, content: str) -> list[float]:
         """
@@ -418,7 +438,7 @@ Examples of Similar Successful Campaigns:
         campaign,
         use_ai: bool = True,
         additional_instructions: str | None = None,
-    ) -> tuple[str, list[float] | None]:
+    ) -> tuple[GenerationResult, list[float] | None]:
         """
         Generate content and its embedding in one call.
 
@@ -428,10 +448,10 @@ Examples of Similar Successful Campaigns:
             additional_instructions: Optional additional AI instructions
 
         Returns:
-            Tuple of (generated_content, embedding_vector)
+            Tuple of (GenerationResult, embedding_vector)
             Embedding may be None if not configured or fails
         """
-        content = self.generate_content(
+        result = self.generate_content(
             campaign,
             use_ai=use_ai,
             additional_instructions=additional_instructions,
@@ -440,11 +460,11 @@ Examples of Similar Successful Campaigns:
         embedding = None
         if self.openai_api_key:
             try:
-                embedding = self.generate_embedding(content)
+                embedding = self.generate_embedding(result.content)
             except Exception as e:
                 logger.warning(f"Embedding generation failed: {e}")
 
-        return content, embedding
+        return result, embedding
 
     def validate_template(self, template_content: str) -> dict[str, Any]:
         """
@@ -512,42 +532,89 @@ Examples of Similar Successful Campaigns:
 
     # ========== HTML Email Generation Methods ==========
 
-    HTML_EMAIL_SYSTEM_PROMPT = """You are an expert email marketing specialist who creates responsive HTML emails.
-Your task is to convert plain text marketing content into professional HTML emails that:
-- Use inline CSS for maximum email client compatibility
-- Use table-based layouts for consistent rendering
-- Are mobile-responsive with media queries
-- Include proper email structure (preheader, header, body, footer)
-- Match the visual style to the campaign type and sale theme
+    HTML_EMAIL_SYSTEM_PROMPT = """You are an expert email marketing designer who creates premium, modern HTML emails for major retail and gas station brands.
 
-Guidelines:
-- Always use inline styles (no external CSS)
-- Use table layouts for structure, not div/flexbox
-- Include alt text for any images
-- Use web-safe fonts with fallbacks
-- Keep the design simple and focused on the content
-- Include an unsubscribe link placeholder: {{unsubscribe_link}}
-- Include a recipient name placeholder: {{recipient_name}}
-- Output only the complete HTML, no explanations"""
+Your emails should look like they come from brands like Shell, Circle K, QuikTrip, Buc-ee's, or Wawa — clean, bold, and professional.
+
+Design principles:
+- MODERN & MINIMAL: Generous white space, clean lines, no clutter. Let the content breathe.
+- BOLD HERO SECTION: Large, eye-catching header area with a strong background color (not an image). Big headline text (28-36px), short subheadline underneath.
+- CLEAR VISUAL HIERARCHY: One primary CTA button per email. Use size, weight, and color to guide the eye. Section breaks with subtle dividers or spacing, not heavy borders.
+- ROUNDED ELEMENTS: Use border-radius on buttons (8px), cards/sections (12px), and containers for a modern feel.
+- TYPOGRAPHY: Use system font stack (Arial, Helvetica, sans-serif). Headlines bold 600-700 weight. Body text 15-16px, line-height 1.6, dark gray (#333) on white — never pure black on white.
+- BUTTON STYLE: Large pill-shaped or rounded-rect CTA buttons (min 48px height, 200px+ wide), bold text, strong contrast color. Add subtle shadow or hover state via background darkening.
+- COLOR USAGE: One strong primary brand color for the hero/header and CTA button. Neutral body (white or #fafafa background). Accent color sparingly for highlights or badges.
+- CARD LAYOUT: If showing multiple offers or details, use card-style sections with light background (#f5f5f5), rounded corners, and padding.
+- FOOTER: Minimal, light gray background, small text, includes unsubscribe link. No heavy branding in the footer.
+
+Technical requirements:
+- All inline CSS (no external stylesheets)
+- Table-based layout for email client compatibility
+- Mobile-responsive: single-column on small screens, max-width 600px container
+- Include {{recipient_name}} and {{unsubscribe_link}} placeholders
+- Web-safe fonts with fallbacks
+- Output only the complete HTML document, no explanations"""
 
     # Campaign type to color/style mapping guidance
     CAMPAIGN_STYLE_GUIDE = """
-Campaign Style Guidelines by Type:
-- seasonal_sale / summer: Warm colors (orange #f97316, yellow #eab308), sunny/bright feel
-- seasonal_sale / winter: Cool colors (blue #3b82f6, silver #94a3b8), cozy/festive feel
-- seasonal_sale / fall: Earth tones (amber #d97706, brown #92400e), warm autumn feel
-- seasonal_sale / spring: Fresh colors (green #22c55e, pink #ec4899), renewal/fresh feel
-- clearance: Bold red (#dc2626) or orange (#ea580c), urgent/exciting feel
-- grand_opening: Celebratory gold (#ca8a04), confetti-style, festive
-- holiday: Festive reds and greens, or themed colors for specific holidays
-- flash_sale: High contrast, urgent red (#ef4444), countdown feel
-- loyalty / rewards: Premium purple (#7c3aed) or gold (#ca8a04), exclusive feel
-- fuel / gas: Green (#16a34a) or blue (#2563eb), savings-focused
-- convenience: Friendly blue (#3b82f6) or teal (#0d9488), approachable
-- default: Professional blue (#2563eb) with clean modern styling
+Design Reference — Think of emails from Shell, Circle K, QuikTrip, Buc-ee's, Wawa:
+
+Campaign Style by Type:
+- fuel_promo / fuel / gas:
+  Primary: Deep green (#059669) or petroleum blue (#0369a1). Hero section with bold cents-off number.
+  Vibe: Clean, trustworthy, savings-focused. Think Shell Fuel Rewards emails.
+  CTA: "Find a Station" or "Start Saving" style button.
+
+- seasonal_sale / summer:
+  Primary: Vibrant orange (#ea580c) or warm coral (#f43f5e). Bright, energetic.
+  Vibe: Bold and fun like a QuikTrip summer promo. Big discount number in hero.
+
+- seasonal_sale / winter:
+  Primary: Rich navy (#1e3a5f) with ice blue (#38bdf8) accents.
+  Vibe: Clean and premium like a holiday fuel rewards email.
+
+- seasonal_sale / fall:
+  Primary: Deep amber (#b45309) with warm tan (#fef3c7) background accents.
+  Vibe: Warm and inviting, harvest/autumn feel.
+
+- seasonal_sale / spring:
+  Primary: Fresh green (#16a34a) with soft mint (#ecfdf5) card backgrounds.
+  Vibe: Clean and fresh, renewal energy.
+
+- clearance:
+  Primary: Bold red (#dc2626). Large percentage-off badge in hero.
+  Vibe: Urgent but still clean — not cluttered. One clear offer.
+
+- grand_opening:
+  Primary: Rich gold (#b45309) on dark background (#1a1a2e).
+  Vibe: Premium and celebratory. Think new store launch announcement.
+
+- flash_sale:
+  Primary: Hot red (#ef4444) with dark (#18181b) header.
+  Vibe: High-contrast urgency. Bold countdown or limited-time messaging.
+
+- loyalty / rewards:
+  Primary: Deep purple (#7c3aed) or gold (#ca8a04).
+  Vibe: Exclusive, VIP feel. Think Circle K Inner Circle or Shell Go+ emails.
+
+- convenience:
+  Primary: Teal (#0d9488) or friendly blue (#2563eb).
+  Vibe: Approachable, everyday savings. Clean card layout for multiple offers.
+
+- default:
+  Primary: Professional blue (#2563eb) on white.
+  Vibe: Modern corporate — clean hero, clear CTA, minimal footer.
+
+General rules for ALL types:
+- Hero section: Solid color background (NOT gradient), white text, 28-36px headline
+- Body: White or near-white (#fafafa) background, 15-16px body text in #333
+- CTA button: Primary color, white text, rounded (border-radius: 8px), min 48px tall
+- Max 1 primary CTA per email
+- Generous padding: 40px+ around hero, 24px+ around body sections
+- Footer: Light gray (#f3f4f6) background, 12-13px text
 """
 
-    HTML_EMAIL_GENERATION_PROMPT = """Convert this marketing content into a responsive HTML email:
+    HTML_EMAIL_GENERATION_PROMPT = """Convert this marketing content into a modern, premium HTML email:
 
 Brand: {brand_name}
 Campaign Type: {campaign_type}
@@ -558,16 +625,20 @@ Content:
 
 {style_guide}
 
-Requirements:
-1. Create a complete HTML email document
-2. Use inline CSS for all styling
-3. Use table-based layout
-4. Include mobile-responsive styles
-5. Include placeholder for unsubscribe link ({{{{unsubscribe_link}}}})
-6. Include placeholder for recipient name ({{{{recipient_name}}}})
-7. Choose colors and styling that match the campaign type above
-8. Make the call-to-action prominent and clickable
-9. The design should visually convey the theme/mood of this type of sale
+Structure the email exactly like this:
+1. HERO SECTION — Full-width colored background (from style guide), large white headline (28-36px bold), short subtitle, and one rounded CTA button
+2. BODY — White background, clean content sections. If multiple offers, use rounded card components with light gray (#f5f5f5) backgrounds. Keep text at 15-16px, color #333.
+3. LOCATION/DETAILS — Address and store info in a subtle card or clean text block
+4. FOOTER — Light gray bar with small muted text, {{{{unsubscribe_link}}}} placeholder
+
+Technical:
+- Complete HTML document with inline CSS only
+- Table-based layout, max-width 600px centered
+- Mobile-responsive (single column, full-width buttons on small screens)
+- Include {{{{recipient_name}}}} placeholder in greeting
+- border-radius: 8px on buttons, 12px on cards
+- Generous white space — do NOT cram content together
+- No emoji in the HTML email — use clean typography instead
 
 HTML Email:"""
 

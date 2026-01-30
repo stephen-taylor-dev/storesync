@@ -526,3 +526,20 @@ class AllLocationsViewSet(BrandAccessMixin, viewsets.ReadOnlyModelViewSet):
             )
 
         return queryset.order_by("brand__name", "name")
+
+    @extend_schema(
+        summary="Get map points",
+        description="Returns lightweight location data for map rendering. Only includes locations with coordinates.",
+        tags=["locations"],
+    )
+    @action(detail=False, methods=["get"])
+    def map_points(self, request):
+        """Return lightweight location data for the map view."""
+        queryset = self.get_queryset().exclude(
+            latitude__isnull=True
+        ).exclude(
+            longitude__isnull=True
+        )
+
+        serializer = LocationMapPointSerializer(queryset, many=True)
+        return Response(serializer.data)

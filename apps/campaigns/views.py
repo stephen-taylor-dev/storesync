@@ -606,24 +606,28 @@ An embedding is computed and stored for similarity search.
         # Synchronous generation
         try:
             service = ContentGeneratorService()
-            content, embedding = service.generate_and_embed(
+            result, embedding = service.generate_and_embed(
                 campaign,
                 use_ai=use_ai,
                 additional_instructions=additional_instructions,
             )
 
             # Save content and embedding
-            campaign.generated_content = content
+            campaign.generated_content = result.content
             if embedding:
                 campaign.content_embedding = embedding
             campaign.save(update_fields=["generated_content", "content_embedding", "updated_at"])
 
-            return Response({
+            response_data = {
                 "status": "success",
-                "content": content,
-                "content_length": len(content),
-                "used_ai": use_ai and service.openai_api_key is not None,
-            })
+                "content": result.content,
+                "content_length": len(result.content),
+                "used_ai": result.used_ai,
+            }
+            if result.fallback_reason:
+                response_data["fallback_reason"] = result.fallback_reason
+
+            return Response(response_data)
 
         except Exception as e:
             return Response(
@@ -680,23 +684,27 @@ Uses AI to create a fresh version based on the template.
 
         try:
             service = ContentGeneratorService()
-            content, embedding = service.generate_and_embed(
+            result, embedding = service.generate_and_embed(
                 campaign,
                 use_ai=True,
                 additional_instructions=additional_instructions,
             )
 
-            campaign.generated_content = content
+            campaign.generated_content = result.content
             if embedding:
                 campaign.content_embedding = embedding
             campaign.save(update_fields=["generated_content", "content_embedding", "updated_at"])
 
-            return Response({
+            response_data = {
                 "status": "success",
-                "content": content,
-                "content_length": len(content),
-                "used_ai": service.openai_api_key is not None,
-            })
+                "content": result.content,
+                "content_length": len(result.content),
+                "used_ai": result.used_ai,
+            }
+            if result.fallback_reason:
+                response_data["fallback_reason"] = result.fallback_reason
+
+            return Response(response_data)
 
         except Exception as e:
             return Response(

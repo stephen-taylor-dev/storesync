@@ -38,10 +38,10 @@ def generate_campaign_content(self, campaign_id: str) -> dict:
         logger.info(f"Generating content for campaign {campaign_id}")
 
         service = ContentGeneratorService()
-        content, embedding = service.generate_and_embed(campaign)
+        result, embedding = service.generate_and_embed(campaign)
 
         # Update campaign with generated content and embedding
-        campaign.generated_content = content
+        campaign.generated_content = result.content
         if embedding:
             campaign.content_embedding = embedding
         campaign.save(update_fields=["generated_content", "content_embedding", "updated_at"])
@@ -51,7 +51,7 @@ def generate_campaign_content(self, campaign_id: str) -> dict:
         return {
             "status": "success",
             "campaign_id": str(campaign_id),
-            "content_length": len(content),
+            "content_length": len(result.content),
             "has_embedding": embedding is not None,
         }
 

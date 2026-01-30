@@ -170,6 +170,7 @@ interface GenerateContentResponse {
   content?: string;
   content_length?: number;
   used_ai?: boolean;
+  fallback_reason?: string;
   message?: string;
 }
 
