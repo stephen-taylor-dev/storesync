@@ -68,6 +68,14 @@ class Location(UUIDModel, TimeStampedModel):
     # Example: {"square_footage": 5000, "has_gas_station": true, "region": "southwest"}
     attributes = models.JSONField(default=dict)
 
+    # GPS coordinates for map-based features
+    latitude = models.DecimalField(
+        max_digits=9, decimal_places=6, null=True, blank=True
+    )
+    longitude = models.DecimalField(
+        max_digits=9, decimal_places=6, null=True, blank=True
+    )
+
     is_active = models.BooleanField(default=True)
 
     objects = LocationManager()

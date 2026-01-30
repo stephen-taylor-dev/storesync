@@ -2,6 +2,8 @@
 Pytest configuration and fixtures for StoreSync tests.
 """
 
+from decimal import Decimal
+
 import pytest
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
@@ -181,6 +183,8 @@ def location(db, brand):
             "square_footage": 5000,
             "has_gas_station": False,
         },
+        latitude=Decimal("30.267200"),
+        longitude=Decimal("-97.743100"),
         is_active=True,
     )
 
@@ -203,6 +207,8 @@ def location_two(db, brand):
             "square_footage": 3500,
             "has_gas_station": True,
         },
+        latitude=Decimal("32.787700"),
+        longitude=Decimal("-96.799700"),
         is_active=True,
     )
 
@@ -221,6 +227,8 @@ def inactive_location(db, brand):
             "zip": "77001",
         },
         attributes={"region": "southeast"},
+        latitude=Decimal("29.760400"),
+        longitude=Decimal("-95.369800"),
         is_active=False,
     )
 
